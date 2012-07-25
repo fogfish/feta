@@ -4,7 +4,8 @@
       {vsn,         "0.2.0"},
       {modules,     [
          uri,
-         csv   
+         csv,
+         hash
       ]},
       {registered,  []},
       {applications,[

@@ -256,7 +256,7 @@ prefix(Uri, T) ->
 %%
 %% Maps schema to default ports
 
-schema_to_port([S| _], P)   -> schema_to_port(S, P);
+schema_to_port([S| _], P)         -> schema_to_port(S, P);
 schema_to_port(tcp,    undefined) -> 80;   % custom schema for tcp sensors
 schema_to_port(http,   undefined) -> 80;
 schema_to_port(ws,     undefined) -> 80;
@@ -264,6 +264,6 @@ schema_to_port(ssl,    undefined) -> 443;  % custom schema for ssl sensors
 schema_to_port(https,  undefined) -> 443;
 schema_to_port(wss,    undefined) -> 443;
 schema_to_port(_,      undefined) -> throw(baduri);
-schema_to_port(_,   Port) -> list_to_integer(binary_to_list(Port)).
-   
+schema_to_port(_,   Port) when is_list(Port) -> list_to_integer(binary_to_list(Port));
+schema_to_port(_,   Port) when is_integer(Port) -> Port.   
 
