@@ -131,6 +131,9 @@ set(authority,V, {uri, S, U}) when is_binary(V) ->
    {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
 set(path,     V, {uri, S, U}) when is_binary(V) -> 
    {uri, S, erlang:setelement(?PATH, U, V)};
+set(segments, V, {uri, S, U}) when is_list(V) ->
+   Segs = lists:map(fun(X) -> [$/, X] end, V),
+   {uri, S, erlang:setelement(?PATH, U, list_to_binary(Segs))};
 set(q,        V, {uri, S, U}) when is_binary(V) -> 
    {uri, S, erlang:setelement(?QUERY, U, V)};
 set(fragment, V, {uri, S, U}) when is_binary(V) -> 
