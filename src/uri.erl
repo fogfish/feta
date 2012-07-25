@@ -95,9 +95,14 @@ get(path,     {uri, _, U}) ->
       <<>> -> <<$/>>;
       V    -> V
    end;
+get(segments, {uri, _, _}=Uri) -> 
+   [_ | Segs] = binary:split(uri:get(path, Uri), <<"/">>, [global, trim]),
+   Segs;
 get(q,        {uri, _, U}) -> erlang:element(?QUERY, U);
 get(fragment, {uri, _, U}) -> erlang:element(?FRAG,  U);
-get(Item, Uri)             -> get(Item, new(Uri)).
+get(Item, Uri) 
+ when is_binary(Uri) orelse is_list(Uri) -> 
+   uri:get(Item, new(Uri)).
 
 %get(authority, {_, Uri}) when is_record(Uri, uri) ->
 %   to_list(authority, Uri);
