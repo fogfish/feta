@@ -122,6 +122,8 @@ set(port,     V, {uri, S, U}) when is_integer(V) ->
    {uri, S, erlang:setelement(?PORT, U, V)};   
 set(authority, {Host, Port}, {uri, S, U}) when is_binary(Host), is_integer(Port) -> 
    {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
+set(authority, {Host, Port}, {uri, S, U}) when is_list(Host), is_integer(Port) ->
+      {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, list_to_binary(Host)), Port)};   
 set(authority,V, {uri, S, U}) when is_binary(V) -> 
    {Host,  Pbin} = suffix(V, <<$:>>),
    Port = case Pbin of
@@ -142,7 +144,8 @@ set(Item, {uri, _,_} = Src, {uri, _, _} = Dst) ->
    set(Item, get(Item, Src), Dst);
 set(Item, V, Uri) when is_list(V) ->
    set(Item, list_to_binary(V), Uri);
-set(Item, V, Uri) -> 
+set(Item, V, Uri)
+ when is_binary(Uri) orelse is_list(Uri) -> 
    set(Item, V, new(Uri)).   
 
 %%
