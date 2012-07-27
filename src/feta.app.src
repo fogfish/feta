@@ -6,7 +6,9 @@
          uri,
          csv,
          hash,
-         bits
+         bits,
+         format,
+         parser
       ]},
       {registered,  []},
       {applications,[
