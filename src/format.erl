@@ -143,6 +143,10 @@ datetime([$%, $S | Tail], {{_Y, _M,_D}, {_H,_N,S}}=Val, Acc) ->
 %% %F  Same as "%Y-%m-%d" (commonly used in database datestamps) Example: 2009-02-05 for February 5, 2009
 %% %s  Unix Epoch Time timestamp (same as the time() function) Example: 305815200 for September 10, 1979 08:40:00 AM
 %% %x  Preferred date representation based on locale, without the time Example: 02/05/09 for February 5, 2009
+datetime([$%, $s | Tail], {{_Y,_M,_D}, {_H,_N,_S}}=Val, Acc) ->
+   Sec = calendar:datetime_to_gregorian_seconds(Val) - ?UNX_EPOCH,
+   datetime(Tail, Val, [io_lib:format("~B", [Sec]) | Acc]);
+
 %%
 %% Miscellaneous
 %% %n  A newline character ("\n")  ---

@@ -34,7 +34,9 @@
 %%
 -module(uri).
 
--export([new/0, new/1, get/2, set/3, add/3, check/2, q/1, to_binary/1]).
+-export([new/0, new/1, check/2]).
+-export([get/2, set/3, add/3, to_binary/1]).
+-export([q/1, q/2, q/3]).
 -export([unescape/1, escape/1]).
 
 -define(USER,  1).
@@ -202,6 +204,22 @@ q({uri, _, U}) ->
    );
 q(Uri) ->
    q(new(Uri)).
+
+%%
+%% q(Key, Uri) -> Val | true | undefined
+%% q(Key, Uri, Default) -> Val
+q(Key, Uri) ->
+   q(Key, Uri, undefined).
+q(Key, Uri, Default) ->
+   List = q(Uri),
+   case lists:member(Key, List) of
+      true  -> true;
+      false ->
+         case lists:keyfind(Key, 1, List) of
+            false      -> Default;
+            {Key, Val} -> Val
+         end
+   end.
 
 %%
 %% to_binary(Uri) ->

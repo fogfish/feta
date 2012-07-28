@@ -104,6 +104,13 @@
    {{0,0,0},{0,0, 7}} = parser:datetime("%S", "07").
 
 %%
+%% Timestamp format
+'%s_test'() ->
+   "1343469600" = format:datetime("%s", {{2012,07,28}, {10,00,00}}),
+   {{2012,07,28}, {10,00,00}} = parser:datetime("%s", "1343469600").
+
+
+%%
 %% Date time formating
 datetime_test() ->
    "2012-10-26 12:23:05" = format:datetime(

@@ -18,7 +18,7 @@
 -module(parser).
 
 -export([datetime/2]).
-
+-define(UNX_EPOCH, 62167219200).
 
 %%%----------------------------------------------------------------------------   
 %%%
@@ -140,7 +140,19 @@ datetime([$%, $S | Tail], Val, {{_Y,_M,_D}=Date, {H,N,_S}}) ->
    S = list_to_integer(Sec), 
    datetime(Tail, Rest, {Date, {H, N, S}});
 
-
+%% Time and Date Stamps
+%% %c  Preferred date and time stamp based on local  Example: Tue Feb 5 00:45:10 2009 for February 5, 2009 at 12:45:10 AM
+%% %D  Same as "%m/%d/%y"  Example: 02/05/09 for February 5, 2009
+%% %F  Same as "%Y-%m-%d" (commonly used in database datestamps) Example: 2009-02-05 for February 5, 2009
+%% %s  Unix Epoch Time timestamp (same as the time() function) Example: 305815200 for September 10, 1979 08:40:00 AM
+%% %x  Preferred date representation based on locale, without the time Example: 02/05/09 for February 5, 2009
+datetime([$%, $s | Tail], Val, _Acc) ->
+   {Sec, Rest} = case string:chr(Val, 32) of
+   	0 -> {Val, []};
+   	I -> lists:split(I - 1, Val)
+   end,
+   S = list_to_integer(Sec), 
+   datetime(Tail, Rest, calendar:gregorian_seconds_to_datetime(S + ?UNX_EPOCH));
 
 datetime([H | Tail], [H | Val], Acc) ->
    datetime(Tail, Val, Acc);
