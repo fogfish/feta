@@ -17,7 +17,7 @@
 %%
 -module(parser).
 
--export([datetime/2]).
+-export([datetime/2, iso8601/1]).
 -define(UNX_EPOCH, 62167219200).
 
 %%%----------------------------------------------------------------------------   
@@ -26,12 +26,16 @@
 %%%
 %%%----------------------------------------------------------------------------   
 
+%%
+%% datetime(Fmt, Val) -> {Date, Time}
+%%
+%% parses date/time literal according to desired format
 datetime(Fmt, Val) when is_binary(Fmt) ->
    datetime(binary_to_list(Fmt), Val);
 
 datetime(Fmt, Val) when is_binary(Val) ->
    datetime(Fmt, binary_to_list(Val));
-   
+
 datetime(Fmt, Val) ->
    datetime(Fmt, Val, {{0,0,0},{0,0,0}}).
 
@@ -166,6 +170,38 @@ datetime([H | Tail], [H | Val], Acc) ->
 datetime([], _Val, Acc) ->
    Acc.
 
+%%
+%% iso8601(Val) -> {Date, Time} 
+%%
+%% parses simples subset of iso8601 formated date/time literal
+%% YYYYMMDD
+%% hhmmssZ
+%% hhmmZ
+%% hhZ
+%% <date>T<time>
+iso8601(Val) ->
+   case length(Val) of
+      8 -> datetime("%Y%m%d",  Val);
+      7 -> datetime("%H%M%SZ", Val);
+      6 -> datetime("%H%M%S",  Val);
+      5 -> datetime("%H%MZ",   Val);
+      4 -> datetime("%H%M",    Val);
+      3 -> datetime("%HZ",   Val);
+      2 -> datetime("%H",      Val);
+
+      16 -> datetime("%Y%m%dT%H%M%SZ", Val);
+      15 -> datetime("%Y%m%dT%H%M%S",  Val);
+      14 -> datetime("%Y%m%dT%H%MZ",   Val);
+      13 -> datetime("%Y%m%dT%H%M",    Val);
+      12 -> datetime("%Y%m%dT%HZ",   Val);
+      11 -> datetime("%Y%m%dT%H",      Val)
+   end.
+
+%%%------------------------------------------------------------------   
+%%%
+%%% private 
+%%%
+%%%------------------------------------------------------------------   
 
 day_of_week("Mon" ++ Tail) -> {1, Tail};
 day_of_week("Tue" ++ Tail) -> {2, Tail};
