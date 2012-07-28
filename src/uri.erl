@@ -34,7 +34,8 @@
 %%
 -module(uri).
 
--export([new/0, new/1, get/2, set/3, add/3, check/2, to_binary/1]).
+-export([new/0, new/1, get/2, set/3, add/3, check/2, q/1, to_binary/1]).
+-export([unescape/1, escape/1]).
 
 -define(USER,  1).
 -define(HOST,  2).
@@ -140,6 +141,19 @@ set(q,        V, {uri, S, U}) when is_binary(V) ->
    {uri, S, erlang:setelement(?QUERY, U, V)};
 set(fragment, V, {uri, S, U}) when is_binary(V) -> 
    {uri, S, erlang:setelement(?FRAG,  U, V)};
+set(suburi,   V, {uri, S, U}) when is_binary(V) -> 
+   % suburi is /path?query#fragment
+   {Path,  V2}   = suffix(V,  <<$?>>),
+   {Query, Frag} = suffix(V2, <<$#>>),
+   U1 = erlang:setelement(?PATH,
+      erlang:setelement(
+         ?QUERY,
+         erlang:setelement(?FRAG, U, Frag),
+         Query
+      ),
+      Path
+   ),
+   {uri, S, U1};
 set(Item, {uri, _,_} = Src, {uri, _, _} = Dst) ->
    set(Item, get(Item, Src), Dst);
 set(Item, V, Uri) when is_list(V) ->
@@ -150,6 +164,8 @@ set(Item, V, Uri)
 
 %%
 %% add(Item, V, Uri) -> NUri
+%%
+%% add path token to uri
 add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
    case uri:get(path, Uri) of
       <<$/>> -> 
@@ -168,8 +184,29 @@ add(Item, V, Uri) ->
    add(Item, V, new(Uri)).   
 
 %%
+%% q(Uri) -> [{Key, Val}]
 %%
+%% return URI query as list of Key/Val pairs
+q({uri, _, U}) ->
+   lists:foldl(
+      fun
+      (<<>>, Acc) -> Acc;
+      (X,    Acc) ->
+         case binary:split(X, <<$=>>) of
+            [Key, Val] -> [{unescape(Key), unescape(Val)} | Acc];
+            [Val]      -> [unescape(Val) | Acc]
+         end
+      end,
+      [],
+      binary:split(erlang:element(?QUERY, U), <<$&>>, [global])
+   );
+q(Uri) ->
+   q(new(Uri)).
+
 %%
+%% to_binary(Uri) ->
+%%
+%% converts uri to binary
 to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
    % schema
    Sbin = case is_list(S) of
@@ -213,7 +250,7 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
 %%      URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 tokenize(Uri0) ->
    % uri
-   {Sbin,  Uri1} = split(Uri0, <<$:>>),
+   {Sbin,  Uri1}  = split(Uri0, <<$:>>),
    {Heir,   Uri2} = suffix(Uri1, <<$?>>),
    {Query,  Frag} = suffix(Uri2, <<$#>>),
    % heir
@@ -240,28 +277,144 @@ tokenize(Uri0) ->
    {Scheme, {User, Host, Port, Path, Query, Frag}}.
 
    
-
+%%
+%% split Uri substring at token T, 
+%% fails if T is not found
 split(Uri, T) ->
    case binary:split(Uri, T) of
       [Token, Rest] -> {Token, Rest};
       _             -> throw(baduri)
    end.
-   
+
+%%
+%% split Uri substring at token T, 
+%% return empty suffix if T is not found    
 suffix(Uri, T) ->
    case binary:split(Uri, T) of
       [Token, Rest] -> {Token, Rest};
       _             -> {Uri,   <<>>}
    end.
 
+%%
+%% split Uri substring at token T,
+%% return empty prefix if T is not found
 prefix(Uri, T) ->
    case binary:split(Uri, T) of
       [Token, Rest] -> {Token, Rest};
       _             -> {<<>>,  Uri}
    end.   
-   
-%%
-%% Maps schema to default ports
 
+%%
+%% escape
+escape(Bin) ->
+   escape(Bin, <<>>).
+
+escape(<<$ , Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%20">>);
+escape(<<$<, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3C">>);
+escape(<<$>, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3E">>);
+escape(<<$#, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%23">>);
+escape(<<$%, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%25">>);
+escape(<<${, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%7B">>);
+escape(<<$}, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%7D">>);
+escape(<<$|, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%7C">>);
+escape(<<$\\, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%5C">>);
+escape(<<$^, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%5E">>);
+escape(<<$~, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%7E">>);
+escape(<<$[, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%5B">>);
+escape(<<$], Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%5D">>);
+escape(<<$`, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%60">>);
+escape(<<$;, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3B">>);
+escape(<<$/, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%2F">>);
+escape(<<$?, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3F">>);
+escape(<<$:, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3A">>);
+escape(<<$@, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%40">>);
+escape(<<$=, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%3D">>);
+escape(<<$&, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%26">>);
+escape(<<$$, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, "%24">>);
+escape(<<H:8, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, H>>);
+escape(<<>>, Acc) ->
+   Acc.
+
+%%
+%% unescape
+unescape(Bin) ->
+   unescape(Bin, <<>>).
+
+unescape(<<"%20", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $ >>);
+unescape(<<"%3C", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $<>>);
+unescape(<<"%3E", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $>>>);
+unescape(<<"%23", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $#>>);
+unescape(<<"%25", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $%>>);
+unescape(<<"%7B", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, ${>>);
+unescape(<<"%7D", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $}>>);
+unescape(<<"%7C", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $|>>);
+unescape(<<"%5C", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $\\>>);
+unescape(<<"%5E", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $^>>);
+unescape(<<"%7E", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $~>>);
+unescape(<<"%5B", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $[>>);
+unescape(<<"%5D", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $]>>);
+unescape(<<"%60", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $`>>);
+unescape(<<"%3B", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $;>>);
+unescape(<<"%2F", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $/>>);
+unescape(<<"%3F", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $?>>);
+unescape(<<"%3A", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $:>>);
+unescape(<<"%40", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $@>>);
+unescape(<<"%3D", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $=>>);
+unescape(<<"%26", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $&>>);
+unescape(<<"%24", Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, $$>>);
+unescape(<<H:8, Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, H>>);
+unescape(<<>>, Acc) ->
+   Acc.
+
+
+%%
+%% maps schema to default ports
 schema_to_port([S| _], P)         -> schema_to_port(S, P);
 schema_to_port(tcp,    undefined) -> 80;   % custom schema for tcp sensors
 schema_to_port(http,   undefined) -> 80;
