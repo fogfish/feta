@@ -26,6 +26,12 @@
 %%%
 %%%----------------------------------------------------------------------------   
 
+datetime(Fmt, Val) when is_binary(Fmt) ->
+   datetime(binary_to_list(Fmt), Val);
+
+datetime(Fmt, Val) when is_binary(Val) ->
+   datetime(Fmt, binary_to_list(Val));
+   
 datetime(Fmt, Val) ->
    datetime(Fmt, Val, {{0,0,0},{0,0,0}}).
 

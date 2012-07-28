@@ -29,6 +29,9 @@
 
 %%
 %%
+datetime(Fmt, Time) when is_binary(Fmt) ->
+   datetime(binary_to_list(Fmt), Time);
+   
 datetime(Fmt, {{_Y,_M,_D}, {_H,_N,_S}}=Val) ->
    datetime(Fmt, Val, []);
 
