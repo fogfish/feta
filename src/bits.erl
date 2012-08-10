@@ -14,37 +14,81 @@
 %%   limitations under the License.
 %%
 %%  @description
-%%
+%%    (see http://aggregate.org/MAGIC)
 -module(bits).
 
--export([lzc/1, lzc/2, lcc/2, prefix/2]).
+%% 32bit primitives
+-export([cnt32/1, lzc32/1]).
+%% bitstring 
+-export([cnt/1, lzc/1, lcc/2, prefix/2]).
+
 -export([pxor/2, pand/2]).
 -export([btoi/1, btol/1, btoh/1, htob/1]).
+-export([interleave/2]).
+
 
 %%
-%% lzc(Bits)     -> Count
-%% lzc(N, Width) -> Count
+%% set bit count (ones, count)
+cnt32(X0) ->
+   X1 = X0 - ((X0 bsr 1) band 16#55555555),
+   X2 = (((X1 bsr 2) band 16#33333333) + (X1 band 16#33333333)),
+   X3 = (((X2 bsr 4) + X2) band 16#0f0f0f0f),
+   X4 = X3 + (X3 bsr  8),
+   X5 = X4 + (X4 bsr 16),
+   X5 band 16#0000003f.
+
+%%
+%% leading zero count
+lzc32(X0) ->
+   X1 = X0 bor (X0 bsr  1),
+   X2 = X1 bor (X1 bsr  2),
+   X3 = X2 bor (X2 bsr  4),
+   X4 = X3 bor (X3 bsr  8),
+   X5 = X4 bor (X4 bsr 16),
+   32 - cnt32(X5).
+
+
+%%
+%% set bit count
+cnt(X) when is_bitstring(X) ->
+   cnt(X, 0).
+
+cnt(<<X:32, Y/bits>>, Acc) ->
+   cnt(Y, Acc + cnt32(X));
+cnt(<<X/bits>>, Acc) ->
+   Size = bit_size(X),
+   <<A:Size>> = X,
+   Acc + cnt32(A) - (32 - Size);
+cnt(<<>>, Acc) ->
+   Acc.
+
 %%
 %% leading zero count
 lzc(X) when is_bitstring(X) ->
+   lzc(X, 0).
+
+lzc(<<0:32, Y/bits>>, Acc) ->
+   lzc(Y, Acc + 32);
+lzc(<<X:32, _/bits>>, Acc) ->
+   Acc + lzc32(X);
+lzc(<<X/bits>>, Acc) ->
    Size = bit_size(X),
    <<A:Size>> = X,
-   lzc(A, Size).
-
-lzc(0, Width) ->
-   Width;
-lzc(X, Width) when is_integer(X) ->
-   lzc(X bsr 1, Width - 1).
+   Acc + lzc32(A) - (32 - Size);
+lzc(<<>>, Acc) ->
+   Acc.
 
 %%
 %% lcc(X, Y) -> Count
 %%
 %% leading common bit count
 lcc(X, Y) when is_bitstring(X), is_bitstring(Y) ->
-   Size = min(bit_size(X), bit_size(Y)),
+   Xlen = bit_size(X),
+   Ylen = bit_size(Y),
+   Size = if Xlen > Ylen -> Ylen ; true -> Xlen end,
    <<A:Size, _/bits>> = X,
    <<B:Size, _/bits>> = Y,
-   lzc(A bxor B, Size).
+   lzc(<<(A bxor B):Size>>).
 
 
 %%
@@ -52,41 +96,26 @@ lcc(X, Y) when is_bitstring(X), is_bitstring(Y) ->
 %% 
 %% common bits prefix
 prefix(X, Y) when is_bitstring(X), is_bitstring(Y) ->
-   prefix8(X, Y, <<>>).
-
-prefix8(<<A:8, XR/bits>> = X, <<B:8, YR/bits>> = Y, Acc) ->
-   case (A bxor B) of
-      0 -> prefix8(XR, YR, <<Acc/bits, A:8>>);
-      _ -> prefix1(X, Y, Acc)
-   end;
-prefix8(X, Y, Acc) ->
-   prefix1(X, Y, Acc). 
-
-prefix1(<<A:1, XR/bits>>, <<B:1, YR/bits>>, Acc) ->
-   case (A bxor B) of
-      0 -> prefix1(XR, YR, <<Acc/bits, A:1>>);
-      _ -> Acc
-   end;
-prefix1(_, _, Acc) ->
-   Acc. 
-
+   Plen = lcc(X,Y),
+   <<Prefix:Plen/bits, _/bits>> = X,
+   Prefix. 
 
 %%
-%% pxor(X, Y) -> Z
 %%
-%% perform XOR
 pxor(X, Y) when is_bitstring(X), is_bitstring(Y) ->
-   Size = min(bit_size(X), bit_size(Y)),
+   Xlen = bit_size(X),
+   Ylen = bit_size(Y),
+   Size = if Xlen > Ylen -> Ylen ; true -> Xlen end,
    <<A:Size, _/bits>> = X,
    <<B:Size, _/bits>> = Y,
    <<(A bxor B):Size>>.
 
 %%
-%% pand(X, Y) -> Z
 %%
-%% perform AND
 pand(X, Y) when is_bitstring(X), is_bitstring(Y) ->
-   Size = min(bit_size(X), bit_size(Y)),
+   Xlen = bit_size(X),
+   Ylen = bit_size(Y),
+   Size = if Xlen > Ylen -> Ylen ; true -> Xlen end,
    <<A:Size, _/bits>> = X,
    <<B:Size, _/bits>> = Y,
    <<(A band B):Size>>.
@@ -121,3 +150,16 @@ btoh(X) ->
 htob(X) ->
    << <<(if A >= $a, A =< $f -> 10 + (A - $a); A >=$0, A =< $9 -> A - $0 end):4>> || <<A:8>> <=X >>. 
 
+%%
+%%
+interleave(X, Y) 
+ when is_bitstring(X), is_bitstring(Y), 
+      bit_size(X) =:= bit_size(Y) ->
+   interleave(X, Y, bit_size(X) - 1, <<>>).
+
+interleave(_, _, -1, Acc) ->
+   Acc;
+interleave(X, Y, N, Acc) ->
+   <<_:N/bits, Xbit:1, _/bits>> = X,
+   <<_:N/bits, Ybit:1, _/bits>> = Y,
+   interleave(X, Y, N - 1, <<Xbit:1, Ybit:1, Acc/bits>>).
