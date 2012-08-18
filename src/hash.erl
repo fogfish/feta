@@ -20,6 +20,7 @@
 -export([ fnv32/1]).
 -export([fnv32a/1]).
 -export([fnv32m/1]).
+-export([seq31/1, seq32/1]).
 
 %%
 %%  FNV32 initial state
@@ -27,6 +28,7 @@
 -define(FNV32_PRIME, 16777619).
 -define(FNV32_INIT,  2166136261).
 -define(FNV32_MASK,  16#FFFFFFFF).
+-define(MASK32,  16#FFFFFFFF).
 
 %%
 %% fnv32(Data) -> Hash
@@ -90,5 +92,21 @@ fnv32m(<<>>, State) ->
 	Hash5 = (Hash4 + (Hash4 bsl 5)) band ?FNV32_MASK,
 	Hash5.
 
+%% Additive congruential method of generating values in 
+%% pseudo-random order bt Roy Hann.
+%% Initially the shift register contains the value 0001.
+%% The two rightmost bits are XOR-ed, the result is fed into
+%% the leftmost bit position and previous regsiter contents shift
+%% one bit right. Choosing correct bits tap position is important.
+%% see E.J. Watson "Primitive Polynomials", Math of Computation
+%%  8bit {0, 2, 3, 4}
+%% 16bit {0, 2, 3, 5}
+%% 31bit {0, 3}
+%% 32bit {0, 1, 2, 3, 5, 7}
+%% 64bit {0, 1, 3, 4}
+seq31(N) ->
+   (N bsr 1) bor ((((N bsr 3) bxor N) band 1) bsl 30).
 
+seq32(N) ->
+   (N bsr 1) bor ((((N bsr 7) bxor (N bsr 5) bxor (N bsr 3) bxor (N bsr 2) bxor (N bsr 1) bxor N) band 1) bsl 30).
 
