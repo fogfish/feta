@@ -35,7 +35,7 @@
 %%    carry-on application specific state throught event functions.
 %%
 -module(csv).
--author("Dmitry Kolesnikov <dmkolesnikov@gmail.com>").
+-author('Dmitry Kolesnikov <dmkolesnikov@gmail.com>').
 -export([parse/3, split/4, pparse/4]).
 -export([infile/3]).
 
@@ -57,23 +57,34 @@
 %% sequentially parses csv file
 %%
 parse(In, Fun, Acc0) when is_list(In) ->
-   % io_list
+   % io_list, each item has to be parsed
    lists:foldl(fun(X, A) -> parse(X, Fun, A) end, Acc0, In); 
 parse(In, Fun, Acc0) when is_binary(In) ->
    % pure binary
    parse(In, 0, 0, [], Fun, Acc0).
 
-parse(In, Pos, Len, Line, Fun, Acc0) when Pos + Len < size(In) ->
+%%
+%% parse(In, Nbr, Pos, Len, Line, FUn, Acc0) ->
+%%   Nbr = current line number
+%%   Pos = token position at input chunk, 
+%%   Len = token length
+%%   Line = accumulator of parsed tokens
+%%   Fun = event handler
+%%   Acc0 = accumulator (state of event handler) 
+parse(In, Pos, Len, Line, Fun, Acc0)
+ when Pos + Len < size(In) ->
    case In of
+      % start of quoted field
       <<_:Pos/binary, _Tkn:Len/binary, ?QUOTE, _/binary>> ->
-         % start field
          parse_quoted(In, Pos + Len + 1, 0, Line, Fun, Acc0);
+      % end of field
       <<_:Pos/binary, Tkn:Len/binary, ?FIELD_BY,  _/binary>> ->
-         % field match
          parse(In, Pos + Len + 1, 0, [Tkn | Line], Fun, Acc0);
+      % last line
       <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY>> ->
          % last line match
          Fun(eof, Fun({line, [Tkn | Line]}, Acc0));
+      % end of line
       <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY, _/binary>>  ->
          % line match
          parse(In, Pos + Len + 1, 0, [], 
