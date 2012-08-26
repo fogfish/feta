@@ -35,12 +35,15 @@ new(time) -> {time, 0, 0, nil}.
 add(Raw, {mavg, N, Val}) ->
    {mavg, N + 1, (N * Val + Raw) / (N + 1)};
 
-add(now, {time, 0, 0,  nil}) ->
-   {time, 1, 0, erlang:now()};
+add(now, {time, N, Val,  nil}) ->
+   {time, N, Val, erlang:now()};
 add(now, {time, N, Val, T0}) ->
    Now = erlang:now(),
    Raw = timer:now_diff(Now, T0),
-   {time, N + 1, (N * Val + Raw) div (N + 1), Now}.
+   {time, N + 1, (N * Val + Raw) div (N + 1), Now};   
+add(idle,{time, N, Val, T0}) ->
+   Raw = timer:now_diff(erlang:now(), T0),
+   {time, N + 1, (N * Val + Raw) div (N + 1), nil}.
 
 %%
 %% val(Counter) -> Value
