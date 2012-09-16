@@ -99,8 +99,10 @@ get(path,     {uri, _, U}) ->
       V    -> V
    end;
 get(segments, {uri, _, _}=Uri) -> 
-   [_ | Segs] = binary:split(uri:get(path, Uri), <<"/">>, [global, trim]),
-   Segs;
+   case binary:split(uri:get(path, Uri), <<"/">>, [global, trim]) of
+      []         -> [];
+      [_ | Segs] -> Segs
+   end;
 get(q,        {uri, _, U}) -> erlang:element(?QUERY, U);
 get(fragment, {uri, _, U}) -> erlang:element(?FRAG,  U);
 get(Item, Uri) 
