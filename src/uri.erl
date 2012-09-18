@@ -230,7 +230,13 @@ q(Key, Uri, Default) ->
 to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
    % schema
    Sbin = case is_list(S) of
-      false -> <<(atom_to_binary(S, utf8))/binary, $:>>;
+      false -> 
+         if
+            S =:= undefined -> 
+               <<>>;
+            true -> 
+               <<(atom_to_binary(S, utf8))/binary, $:>>
+         end;
       true  -> <<(
          list_to_binary(
             string:join(
@@ -270,7 +276,7 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
 %%      URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 tokenize(Uri0) ->
    % uri
-   {Sbin,  Uri1}  = split(Uri0, <<$:>>),
+   {Scheme, Uri1} = p_schema(Uri0),
    {Heir,   Uri2} = suffix(Uri1, <<$?>>),
    {Query,  Frag} = suffix(Uri2, <<$#>>),
    % heir
@@ -284,11 +290,6 @@ tokenize(Uri0) ->
    end,
    {User, Host0} = prefix(Auth0, <<$@>>),
    {Host,  Pbin} = suffix(Host0, <<$:>>),
-   % parse schema
-   Scheme = case binary:split(Sbin, <<$+>>, [global]) of
-      [S] -> binary_to_atom(S, utf8);
-       S  -> lists:map(fun(X) -> binary_to_atom(X, utf8) end, S)
-   end,
    % parse port
    Port = case Pbin of
       <<>> ->  undefined;
@@ -296,6 +297,18 @@ tokenize(Uri0) ->
    end,
    {Scheme, {User, Host, Port, Path, Query, Frag}}.
 
+%%
+%%
+p_schema(Uri0) ->
+   case prefix(Uri0, <<$:>>) of
+      {<<>>, Uri} -> 
+         {undefined, Uri};
+      {Scheme, Uri} ->
+         case binary:split(Scheme, <<$+>>, [global]) of
+            [S] -> {binary_to_atom(S, utf8), Uri};
+             S  -> {lists:map(fun(X) -> binary_to_atom(X, utf8) end, S), Uri}
+         end
+   end.
    
 %%
 %% split Uri substring at token T, 
