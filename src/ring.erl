@@ -19,6 +19,7 @@
 
 -export([new/0, new/1, join/3, leave/2]).
 -export([whereis/2, members/1, size/1]).
+-export([hash/2]).
 
 %%
 -record(ring, {
@@ -88,6 +89,13 @@ members(#ring{nodes=Nodes}) ->
 size(#ring{nodes=Nodes}) ->
    length(Nodes).
 
+%%
+%%
+hash(Val, #ring{hash=md5}) ->
+   erlang:md5(term_to_binary(Val));
+
+hash(Val, #ring{hash=sha1})->
+   crypto:sha1(term_to_binary(Val)).
 
 %%
 %%
@@ -97,5 +105,6 @@ addr_to_int(Addr, #ring{keylen=Len})
    <<Int:Size, _/bits>> = Addr,
    Int;
 
-addr_to_int(Addr, #ring{hash=md5}) ->
-   erlang:md5(term_to_binary(Addr)).
+addr_to_int(Addr, Ring) ->
+   addr_to_int(hash(Addr, Ring), Ring).
+   
