@@ -18,8 +18,7 @@
 -module(ring).
 
 -export([new/0, new/1, join/3, leave/2]).
--export([whereis/2, members/1, size/1]).
--export([hash/2]).
+-export([whereis/2, members/1, size/1, address/2]).
 
 %%
 -record(ring, {
@@ -48,36 +47,45 @@ new([], R) ->
 
 %%
 %% join node to the ring
-join(Key, Node, #ring{nodes=Nodes}=R) ->
-   Addr = addr_to_int(Key, R),
-   List = case lists:keytake(Addr, 1, Nodes) of
+join({hash, Addr}, Node, #ring{nodes=Nodes}=R) ->
+   Npos = addr_to_int(Addr, R),
+   List = case lists:keytake(Npos, 1, Nodes) of
       false         -> Nodes;
       {value, _, L} -> L
    end,
-   R#ring{nodes=[{Addr, Node} | List]}.
+   R#ring{nodes=[{Npos, Node} | List]};
+
+join(Key, Node, Ring) ->
+   join(address(Key, Ring), Node, Ring).
 
 %%
 %% leave node
-leave(Key, #ring{nodes=Nodes}=R) ->
-   Addr = addr_to_int(Key, R),
-   case lists:keytake(Addr, 1, Nodes) of
+leave({hash, Addr}, #ring{nodes=Nodes}=R) ->
+   Npos = addr_to_int(Addr, R),
+   case lists:keytake(Npos, 1, Nodes) of
       false          -> R;
       {value, _, NN} -> R#ring{nodes=NN}
-   end.
+   end;
+
+leave(Key, Ring) ->
+   leave(address(Key, Ring), Ring).
 
 %%
-%% return list of nodes for the key
-whereis(Key, #ring{replica=N, nodes=Nodes}=R) ->
-   Addr   = addr_to_int(Key, R),
+%% return list of nodes for the address
+whereis({hash, Addr}, #ring{replica=N, nodes=Nodes}=R) ->
+   Npos   = addr_to_int(Addr, R),
    {T, H} = lists:partition(
-      fun({X, _}) -> X >= Addr end,
+      fun({X, _}) -> X >= Npos end,
       lists:usort(Nodes)
    ),
    List = case length(T) of
       Len when Len >= N -> lists:sublist(T, N);
-      Len -> T ++ lists:sublist(H, N - Len)
+      Len               -> T ++ lists:sublist(H, N - Len)
    end,
-   lists:map(fun({_, Peer}) -> Peer end, List).
+   lists:map(fun({_, Peer}) -> Peer end, List);
+
+whereis(Key, Ring) ->
+   whereis(address(Key, Ring), Ring).
 
 %%
 %% return list of ring members
@@ -91,20 +99,42 @@ size(#ring{nodes=Nodes}) ->
 
 %%
 %%
-hash(Val, #ring{hash=md5}) ->
-   erlang:md5(term_to_binary(Val));
+address({hash, Addr0}, #ring{keylen=Len}) ->
+   <<Addr:Len/bits, _/bits>> = Addr0,
+   {hash, Addr};
 
-hash(Val, #ring{hash=sha1})->
-   crypto:sha1(term_to_binary(Val)).
+address(Val, #ring{hash=md5, keylen=Len}) ->
+   <<Addr:Len/bits, _/bits>> = erlang:md5(term_to_binary(Val)),
+   {hash, Addr};
+
+address(Val, #ring{hash=sha1, keylen=Len})->
+   <<Addr:Len/bits, _/bits>> = crypto:sha1(term_to_binary(Val)),
+   {hash, Addr}.
+
+
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% private
+%%%
+%%%------------------------------------------------------------------   
 
 %%
 %%
 addr_to_int(Addr, #ring{keylen=Len})
  when is_binary(Addr) ->
-   Size = erlang:min(bit_size(Addr), Len),
-   <<Int:Size, _/bits>> = Addr,
-   Int;
+   <<Int:Len>> = Addr,
+   Int.
 
-addr_to_int(Addr, Ring) ->
-   addr_to_int(hash(Addr, Ring), Ring).
+% %%
+% %%
+% addr_to_int(Addr, #ring{keylen=Len})
+%  when is_binary(Addr) ->
+%    Size = erlang:min(bit_size(Addr), Len),
+%    <<Int:Size, _/bits>> = Addr,
+%    Int;
+
+% addr_to_int(Addr, Ring) ->
+%    addr_to_int(hash(Addr, Ring), Ring).
    
