@@ -90,7 +90,7 @@ whereis(Key, Ring) ->
 %%
 %% return list of ring members
 members(#ring{nodes=Nodes}) ->
-   lists:map(fun({_, Peer}) -> Peer end, Nodes).
+   lists:map(fun({_, Peer}) -> Peer end, lists:usort(Nodes)).
 
 %%
 %% number of members
