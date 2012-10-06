@@ -108,7 +108,7 @@ address(Val, #ring{hash=md5, keylen=Len}) ->
    {hash, Addr};
 
 address(Val, #ring{hash=sha1, keylen=Len})->
-   <<Addr:Len/bits, _/bits>> = crypto:sha1(term_to_binary(Val)),
+   <<Addr:Len/bits, _/bits>> = crypto:sha(term_to_binary(Val)),
    {hash, Addr}.
 
 
