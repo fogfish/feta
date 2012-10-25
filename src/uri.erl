@@ -55,7 +55,7 @@
 new() ->
    new(undefined).
 new(Uri) when is_binary(Uri) ->
-   {Schema, Body} = tokenize(Uri),
+   {Schema, Body} = tokenize(unescape(Uri)),
    {uri, Schema, Body};
 new(Uri) when is_list(Uri) ->
    new(list_to_binary(Uri));
@@ -265,7 +265,7 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
       F =/= <<>> -> <<$#, F/binary>>;
       true -> <<>>
    end,
-   <<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>.
+   escape(<<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>).
          
 %%%------------------------------------------------------------------
 %%%
@@ -342,108 +342,79 @@ prefix(Uri, T) ->
 escape(Bin) ->
    escape(Bin, <<>>).
 
-escape(<<$ , Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%20">>);
-escape(<<$<, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3C">>);
-escape(<<$>, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3E">>);
-escape(<<$#, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%23">>);
-escape(<<$%, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%25">>);
-escape(<<${, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%7B">>);
-escape(<<$}, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%7D">>);
-escape(<<$|, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%7C">>);
-escape(<<$\\, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%5C">>);
-escape(<<$^, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%5E">>);
-escape(<<$~, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%7E">>);
-escape(<<$[, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%5B">>);
-escape(<<$], Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%5D">>);
-escape(<<$`, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%60">>);
-escape(<<$;, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3B">>);
-escape(<<$/, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%2F">>);
-escape(<<$?, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3F">>);
-escape(<<$:, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3A">>);
-escape(<<$@, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%40">>);
-escape(<<$=, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%3D">>);
-escape(<<$&, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%26">>);
-escape(<<$$, Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, "%24">>);
-escape(<<H:8, Bin/binary>>, Acc) ->
+escape(<<H:8, Bin/binary>>, Acc) when H >= $a, H =< $z ->
    escape(Bin, <<Acc/binary, H>>);
+escape(<<H:8, Bin/binary>>, Acc) when H >= $A, H =< $z ->
+   escape(Bin, <<Acc/binary, H>>);
+escape(<<H:8, Bin/binary>>, Acc) when H >= $0, H =< $9 ->
+   escape(Bin, <<Acc/binary, H>>);
+
+escape(<<$ , Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $+>>);
+
+
+%% unreserved "-" | "_" | "." | "!" | "~" | "*" | "'" | "(" | ")"
+escape(<<$-, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $->>);
+escape(<<$_, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $_>>);
+escape(<<$., Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $.>>);
+escape(<<$!, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $!>>);
+escape(<<$~, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $~>>);
+escape(<<$*, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $*>>);
+escape(<<$', Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $'>>);
+escape(<<$(, Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $(>>);
+escape(<<$), Bin/binary>>, Acc) ->
+   escape(Bin, <<Acc/binary, $)>>);
+
+escape(<<H:8, Bin/binary>>, Acc) when H =< 16#7f ->
+   escape(Bin, <<Acc/binary, $%, (escape_byte(H))/binary>>);
+
+escape(<<H:8, Bin/binary>>, Acc) when H  > 16#7f ->
+   escape(Bin, 
+      <<Acc/binary,
+      $%, (escape_byte((H bsr      6) + 16#c0))/binary, 
+      $%, (escape_byte((H band 16#3f) + 16#80))/binary>>
+   );
+
 escape(<<>>, Acc) ->
    Acc.
+
+escape_byte(H) ->
+   <<(hex(H div 16)), (hex(H rem 16))>>.
+
+hex(H) when H <  10 ->
+   $0 + H;
+hex(H) when H >= 10 ->
+   $A + (H - 10).
 
 %%
 %% unescape
 unescape(Bin) ->
    unescape(Bin, <<>>).
 
-unescape(<<"%20", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $ >>);
-unescape(<<"%3C", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $<>>);
-unescape(<<"%3E", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $>>>);
-unescape(<<"%23", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $#>>);
-unescape(<<"%25", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $%>>);
-unescape(<<"%7B", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, ${>>);
-unescape(<<"%7D", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $}>>);
-unescape(<<"%7C", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $|>>);
-unescape(<<"%5C", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $\\>>);
-unescape(<<"%5E", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $^>>);
-unescape(<<"%7E", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $~>>);
-unescape(<<"%5B", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $[>>);
-unescape(<<"%5D", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $]>>);
-unescape(<<"%60", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $`>>);
-unescape(<<"%3B", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $;>>);
-unescape(<<"%2F", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $/>>);
-unescape(<<"%3F", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $?>>);
-unescape(<<"%3A", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $:>>);
-unescape(<<"%40", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $@>>);
-unescape(<<"%3D", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $=>>);
-unescape(<<"%26", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $&>>);
-unescape(<<"%24", Bin/binary>>, Acc) ->
-   unescape(Bin, <<Acc/binary, $$>>);
+unescape(<<$%, H:8, L:8, Bin/binary>>, Acc) ->
+   unescape(Bin, <<Acc/binary, (unescape_byte(H, L))>>);
 unescape(<<H:8, Bin/binary>>, Acc) ->
    unescape(Bin, <<Acc/binary, H>>);
 unescape(<<>>, Acc) ->
    Acc.
+
+unescape_byte(H, L) ->
+   int(H) * 16 + int(L).
+
+int(C) when $0 =< C, C =< $9 ->
+    C - $0;
+int(C) when $A =< C, C =< $F ->
+    C - $A + 10;
+int(C) when $a =< C, C =< $f ->
+    C - $a + 10.
 
 
 %%
