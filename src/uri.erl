@@ -51,11 +51,10 @@
 %%   URI       = list() | binary() | uri()
 %%
 %% parses URI into tuple, fails with badarg if invalid URI
-%%
 new() ->
    new(undefined).
 new(Uri) when is_binary(Uri) ->
-   {Schema, Body} = tokenize(unescape(Uri)),
+   {Schema, Body} = tokenize(Uri),
    {uri, Schema, Body};
 new(Uri) when is_list(Uri) ->
    new(list_to_binary(Uri));
@@ -71,12 +70,12 @@ new({uri, _, _} = Uri) ->
 check([], {uri, _,_} = Uri) ->
    Uri;
 check([{Key, Val} | T], {uri, _,_} = Uri) ->
-   case knet_uri:get(Key, Uri) of
+   case uri:get(Key, Uri) of
       Val -> check(T, Uri);
       _   -> throw(badarg)
    end;
 check([Key | T], {uri, _,_} = Uri) ->
-   case knet_uri:get(Key, Uri) of
+   case uri:get(Key, Uri) of
       <<>>      -> throw(badarg);
       undefined -> throw(badarg);
       _         -> check(T, Uri)
@@ -88,13 +87,18 @@ check(List, Uri) ->
 %%
 %% get(Item, Uri) -> binary() | integer()
 %%
-get(schema,   {uri, S, _}) ->  S;
-get(userinfo, {uri, _, U}) -> erlang:element(?USER,  U);
-get(host,     {uri, _, U}) -> erlang:element(?HOST,  U);
-get(port,     {uri, S, U}) -> schema_to_port(S, erlang:element(?PORT, U));
-get(authority,{uri, S, U}) -> {erlang:element(?HOST,  U), schema_to_port(S, erlang:element(?PORT, U))};
+get(schema,   {uri, S, _}) -> 
+   S;
+get(userinfo, {uri, _, U}) -> 
+   unescape(erlang:element(?USER, U));
+get(host,     {uri, _, U}) -> 
+   erlang:element(?HOST, U);
+get(port,     {uri, S, U}) -> 
+   schema_to_port(S, erlang:element(?PORT, U));
+get(authority,{uri, S, U}) -> 
+   {erlang:element(?HOST, U), schema_to_port(S, erlang:element(?PORT, U))};
 get(path,     {uri, _, U}) -> 
-   case erlang:element(?PATH,  U) of
+   case unescape(erlang:element(?PATH, U)) of
       <<>> -> <<$/>>;
       V    -> V
    end;
@@ -103,16 +107,13 @@ get(segments, {uri, _, _}=Uri) ->
       []         -> [];
       [_ | Segs] -> Segs
    end;
-get(q,        {uri, _, U}) -> erlang:element(?QUERY, U);
-get(fragment, {uri, _, U}) -> erlang:element(?FRAG,  U);
+get(q,        {uri, _, U}) -> 
+   unescape(erlang:element(?QUERY, U));
+get(fragment, {uri, _, U}) -> 
+   unescape(erlang:element(?FRAG,  U));
 get(Item, Uri) 
  when is_binary(Uri) orelse is_list(Uri) -> 
    uri:get(Item, new(Uri)).
-
-%get(authority, {_, Uri}) when is_record(Uri, uri) ->
-%   to_list(authority, Uri);
-%get(resource, {_, Uri}) when is_record(Uri, uri) ->
-%   to_list(resource, Uri);
 
 %%
 %% set(Item, V, Uri) -> NUri
@@ -120,7 +121,7 @@ get(Item, Uri)
 set(schema,   V, {uri, _, U}) when is_atom(V) -> 
    {uri, V, U};
 set(userinfo, V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?USER, U, V)};
+   {uri, S, erlang:setelement(?USER, U, escape(V))};
 set(host,     V, {uri, S, U}) when is_binary(V) -> 
    {uri, S, erlang:setelement(?HOST, U, V)};
 set(port,     V, {uri, S, U}) when is_integer(V) -> 
@@ -137,14 +138,14 @@ set(authority,V, {uri, S, U}) when is_binary(V) ->
    end,
    {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
 set(path,     V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?PATH, U, V)};
+   {uri, S, erlang:setelement(?PATH, U, escape(V))};
 set(segments, V, {uri, S, U}) when is_list(V) ->
    Segs = lists:map(fun(X) -> [$/, X] end, V),
-   {uri, S, erlang:setelement(?PATH, U, list_to_binary(Segs))};
+   {uri, S, erlang:setelement(?PATH, U, escape(list_to_binary(Segs)))};
 set(q,        V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?QUERY, U, V)};
+   {uri, S, erlang:setelement(?QUERY, U, escape(V))};
 set(fragment, V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?FRAG,  U, V)};
+   {uri, S, erlang:setelement(?FRAG,  U, escape(V))};
 set(suburi,   V, {uri, S, U}) when is_binary(V) -> 
    % suburi is /path?query#fragment
    {Path,  V2}   = suffix(V,  <<$?>>),
@@ -191,7 +192,7 @@ add(Item, V, Uri) ->
 %% q(Uri) -> [{Key, Val}]
 %%
 %% return URI query as list of Key/Val pairs
-q({uri, _, U}) ->
+q(Uri) ->
    lists:foldl(
       fun
       (<<>>, Acc) -> Acc;
@@ -202,7 +203,7 @@ q({uri, _, U}) ->
          end
       end,
       [],
-      binary:split(erlang:element(?QUERY, U), <<$&>>, [global])
+      binary:split(uri:get(q, Uri), <<$&>>, [global])
    );
 q(Uri) ->
    q(new(Uri)).
@@ -265,7 +266,7 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
       F =/= <<>> -> <<$#, F/binary>>;
       true -> <<>>
    end,
-   escape(<<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>).
+   <<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>.
          
 %%%------------------------------------------------------------------
 %%%
