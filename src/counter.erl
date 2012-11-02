@@ -37,8 +37,9 @@
 %%
 %% execution rate counter
 -record(rate, {
-	n   = 0,    % number of samples
+	n   = 0,    % total number of samples
 	at  = nil,  % time interval
+   cnt = 0,    % samples count on time interval
 	val = 0     % average rate
 }).
 
@@ -61,25 +62,30 @@ new(rate) -> #rate{}.
 add(Raw, #mavg{n=N, val=Val}) ->
    #mavg{n=N + 1, val=(N * Val + Raw) / (N + 1)};
 
+%%
 add(now, #time{at=nil}=C) ->
    C#time{at=erlang:now()};
+
 add(now, #time{n=N, at=T0, val=Val}) ->
    Now = erlang:now(),
    Raw = timer:now_diff(Now, T0),
-   #time{n=N + 1, at=Now, val=(N * Val + Raw) div (N + 1)};   
+   #time{n=N + 1, at=Now, val=(N * Val + Raw) div (N + 1)}; 
+
 add(idle,#time{n=N, at=T0, val=Val}) ->
    Raw = timer:now_diff(erlang:now(), T0),
    #time{n=N + 1, at=nil, val=(N * Val + Raw) div (N + 1)};
 
-add(Raw, #rate{n=N, at=nil}=C) ->
-   C#rate{n=N + Raw, at=erlang:now()};
-add(Raw, #rate{n=N, at=T0}=C) ->
+%%
+add(Raw, #rate{n=N0, cnt=N1, at=nil}=C) ->
+   C#rate{n=N0 + Raw, cnt=N1 + Raw, at=erlang:now()};
+
+add(Raw, #rate{n=N0, cnt=N1, at=T0}=C) ->
    case timer:now_diff(erlang:now(), T0) of
    	T when T > 1000000 ->
    	   Sec = T / 1000000,
-   	   C#rate{n=N + Raw, val=(N + Raw) / Sec};
+   	   C#rate{n=N0 + Raw, cnt=0, at=erlang:now(), val=(N1 + Raw) / Sec};
    	_ ->
-			C#rate{n=N + Raw}
+			C#rate{n=N0 + Raw, cnt=N1 + Raw}
 	end.
 
 %%
