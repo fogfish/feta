@@ -40,7 +40,7 @@
 	n   = 0,    % total number of samples
 	at  = nil,  % time interval
    cnt = 0,    % samples count on time interval
-	val = 0     % average rate
+	val = 0.0   % average rate
 }).
 
 
