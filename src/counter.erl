@@ -77,7 +77,7 @@ add(Raw, #rate{n=N, at=T0}=C) ->
    case timer:now_diff(erlang:now(), T0) of
    	T when T > 1000000 ->
    	   Sec = T / 1000000,
-   	   #rate{n=0, at=erlang:now(), val=(N + Raw) / Sec};
+   	   C#rate{n=N + Raw, val=(N + Raw) / Sec};
    	_ ->
 			C#rate{n=N + Raw}
 	end.
