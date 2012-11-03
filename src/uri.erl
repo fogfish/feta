@@ -108,7 +108,7 @@ get(segments, {uri, _, _}=Uri) ->
       [_ | Segs] -> Segs
    end;
 get(q,        {uri, _, U}) -> 
-   unescape(erlang:element(?QUERY, U));
+   erlang:element(?QUERY, U);  % do not unescape a query so that =, & are distinguished
 get(fragment, {uri, _, U}) -> 
    unescape(erlang:element(?FRAG,  U));
 get(Item, Uri) 
