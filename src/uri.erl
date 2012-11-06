@@ -35,7 +35,8 @@
 -module(uri).
 
 -export([new/0, new/1, check/2]).
--export([get/2, set/3, add/3, to_binary/1]).
+-export([get/2, set/3, add/3]).
+-export([match/2, to_binary/1]).
 -export([q/1, q/2, q/3]).
 -export([unescape/1, escape/1]).
 
@@ -102,11 +103,8 @@ get(path,     {uri, _, U}) ->
       <<>> -> <<$/>>;
       V    -> V
    end;
-get(segments, {uri, _, _}=Uri) -> 
-   case binary:split(uri:get(path, Uri), <<"/">>, [global, trim]) of
-      []         -> [];
-      [_ | Segs] -> Segs
-   end;
+get(segments, {uri, _, _}=Uri) ->
+   path_to_segments(uri:get(path, Uri));
 get(q,        {uri, _, U}) -> 
    erlang:element(?QUERY, U);  % do not unescape a query so that =, & are distinguished
 get(fragment, {uri, _, U}) -> 
@@ -130,7 +128,7 @@ set(authority, {Host, Port}, {uri, S, U}) when is_binary(Host), is_integer(Port)
    {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
 set(authority, {Host, Port}, {uri, S, U}) when is_list(Host), is_integer(Port) ->
       {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, list_to_binary(Host)), Port)};   
-set(authority,V, {uri, S, U}) when is_binary(V) -> 
+set(authority, V, {uri, S, U}) when is_binary(V) -> 
    {Host,  Pbin} = suffix(V, <<$:>>),
    Port = case Pbin of
       <<>> ->  undefined;
@@ -223,6 +221,75 @@ q(Key, Uri, Default) ->
             {Key, Val} -> Val
          end
    end.
+
+%%
+%% match(Uri, TUri) -> true | false
+%%
+%% match Uri to template
+match({uri, _, _}=Uri, {uri, _, _}=TUri) ->
+   match([schema, userinfo, host, port, segments, q, fragment], Uri, TUri);
+
+match(Uri, TUri) ->
+   match(uri:new(Uri), uri:new(TUri)).
+
+match([segments | T], Uri, TUri) ->
+   case uri:get(segments, TUri) of
+      []  -> match(T, Uri, TUri);
+      Val -> match_segments(uri:get(segments, Uri), Val)
+   end;
+
+match([Tag | T], Uri, TUri) ->
+   case uri:get(Tag, TUri) of
+      undefined -> match(T, Uri, TUri);
+      <<>>      -> match(T, Uri, TUri);
+      Val       ->
+         case uri:get(Tag, Uri) of
+            Val -> match(T, Uri, TUri);
+            _   -> false
+         end
+   end;
+
+match([], _Uri, _TUri) ->
+   true.
+
+match_segments(_, [<<$*>>]) ->
+   true;
+
+match_segments([_ | T], [<<$*>> | TT]) ->
+   match_segments(T, TT);
+
+match_segments([V | T], [TV | TT]) 
+ when V =:= TV ->
+   match_segments(T, TT);
+
+match_segments([V | T], [TV | TT]) 
+ when V =/= TV ->
+   false;
+
+match_segments([], []) ->
+   true;
+
+match_segments(_, []) ->
+   false.
+
+
+
+% check([], {uri, _,_} = Uri) ->
+%    Uri;
+% check([{Key, Val} | T], {uri, _,_} = Uri) ->
+%    case uri:get(Key, Uri) of
+%       Val -> check(T, Uri);
+%       _   -> throw(badarg)
+%    end;
+% check([Key | T], {uri, _,_} = Uri) ->
+%    case uri:get(Key, Uri) of
+%       <<>>      -> throw(badarg);
+%       undefined -> throw(badarg);
+%       _         -> check(T, Uri)
+%    end;
+% check(List, Uri) ->
+%    check(List, new(Uri)).   
+
 
 %%
 %% to_binary(Uri) ->
@@ -427,7 +494,14 @@ schema_to_port(ws,     undefined) -> 80;
 schema_to_port(ssl,    undefined) -> 443;  % custom schema for ssl sensors 
 schema_to_port(https,  undefined) -> 443;
 schema_to_port(wss,    undefined) -> 443;
+schema_to_port(undefined,    undefined) -> undefined;
 schema_to_port(_,      undefined) -> throw(baduri);
 schema_to_port(_,   Port) when is_list(Port) -> list_to_integer(binary_to_list(Port));
 schema_to_port(_,   Port) when is_integer(Port) -> Port.   
 
+
+path_to_segments(Path) ->
+   case binary:split(Path, <<"/">>, [global, trim]) of
+      []         -> [];
+      [_ | Segs] -> Segs
+   end.
