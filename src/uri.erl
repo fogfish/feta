@@ -202,9 +202,7 @@ q(Uri) ->
       end,
       [],
       binary:split(uri:get(q, Uri), <<$&>>, [global])
-   );
-q(Uri) ->
-   q(new(Uri)).
+   ).
 
 %%
 %% q(Key, Uri) -> Val | true | undefined
@@ -255,6 +253,9 @@ match([], _Uri, _TUri) ->
 match_segments(_, [<<$*>>]) ->
    true;
 
+match_segments([_ | T], [<<$_>> | TT]) ->
+   match_segments(T, TT);
+
 match_segments([_ | T], [<<$*>> | TT]) ->
    match_segments(T, TT);
 
@@ -262,14 +263,14 @@ match_segments([V | T], [TV | TT])
  when V =:= TV ->
    match_segments(T, TT);
 
-match_segments([V | T], [TV | TT]) 
+match_segments([V | _], [TV | _]) 
  when V =/= TV ->
    false;
 
 match_segments([], []) ->
    true;
 
-match_segments(_, []) ->
+match_segments(_, _) ->
    false.
 
 
@@ -381,11 +382,11 @@ p_schema(Uri0) ->
 %%
 %% split Uri substring at token T, 
 %% fails if T is not found
-split(Uri, T) ->
-   case binary:split(Uri, T) of
-      [Token, Rest] -> {Token, Rest};
-      _             -> throw(baduri)
-   end.
+% split(Uri, T) ->
+%    case binary:split(Uri, T) of
+%       [Token, Rest] -> {Token, Rest};
+%       _             -> throw(baduri)
+%    end.
 
 %%
 %% split Uri substring at token T, 
