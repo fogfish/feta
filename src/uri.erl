@@ -47,6 +47,9 @@
 -define(QUERY, 5).
 -define(FRAG,  6).
 
+%% query operation
+-define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$=>>, <<$>>>, <<$<>>]).
+
 %%
 %% new(URI) -> {uri, ...}
 %%   URI       = list() | binary() | uri()
@@ -136,10 +139,10 @@ set(authority, V, {uri, S, U}) when is_binary(V) ->
    end,
    {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
 set(path,     V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?PATH, U, escape(V))};
+   {uri, S, erlang:setelement(?PATH, U, V)};
 set(segments, V, {uri, S, U}) when is_list(V) ->
-   Segs = lists:map(fun(X) -> [$/, X] end, V),
-   {uri, S, erlang:setelement(?PATH, U, escape(list_to_binary(Segs)))};
+   Segs = lists:map(fun(X) -> [$/, escape(X)] end, V),
+   {uri, S, erlang:setelement(?PATH, U, list_to_binary(Segs))};
 set(q,        V, {uri, S, U}) when is_binary(V) -> 
    {uri, S, erlang:setelement(?QUERY, U, escape(V))};
 set(fragment, V, {uri, S, U}) when is_binary(V) -> 
@@ -194,15 +197,22 @@ q(Uri) ->
    lists:foldl(
       fun
       (<<>>, Acc) -> Acc;
-      (X,    Acc) ->
-         case binary:split(X, <<$=>>) of
-            [Key, Val] -> [{unescape(Key), unescape(Val)} | Acc];
-            [Val]      -> [unescape(Val) | Acc]
-         end
+      (X,    Acc) -> [parse_q(?COMPARE, X) | Acc]
       end,
       [],
       binary:split(uri:get(q, Uri), <<$&>>, [global])
    ).
+
+parse_q([], X)  ->
+   unescape(X);
+parse_q([Op|T], X) ->
+   case binary:match(X, Op) of
+      nomatch -> 
+         parse_q(T, X);
+      _       ->
+         [Key, Val] = binary:split(X, Op),
+         {binary_to_atom(Op, utf8), unescape(Key), unescape(Val)}
+   end.
 
 %%
 %% q(Key, Uri) -> Val | true | undefined
@@ -466,7 +476,7 @@ hex(H) when H >= 10 ->
 %%
 %% unescape
 unescape(Bin) ->
-   unescape(Bin, <<>>).
+   decode(unescape(Bin, <<>>), <<>>).
 
 unescape(<<$%, H:8, L:8, Bin/binary>>, Acc) ->
    unescape(Bin, <<Acc/binary, (unescape_byte(H, L))>>);
@@ -484,6 +494,15 @@ int(C) when $A =< C, C =< $F ->
     C - $A + 10;
 int(C) when $a =< C, C =< $f ->
     C - $a + 10.
+
+%%
+%% decode utf8 (TODO: utf8 for binaries)
+decode(<<H:8, L:8, Rest/binary>>, Acc) when H >= 16#C0 ->
+   decode(Rest, <<Acc/binary, ((H bsl 6) + (L band 16#3f))>>);
+decode(<<H:8, Rest/binary>>, Acc) ->
+   decode(Rest, <<Acc/binary, H>>);
+decode(<<>>, Acc) ->
+   Acc.
 
 
 %%
