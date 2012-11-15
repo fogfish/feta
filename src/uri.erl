@@ -222,11 +222,12 @@ q(Key, Uri) ->
 q(Key, Uri, Default) ->
    List = q(Uri),
    case lists:member(Key, List) of
-      true  -> true;
+      true  -> 
+         true;
       false ->
-         case lists:keyfind(Key, 1, List) of
-            false      -> Default;
-            {Key, Val} -> Val
+         case lists:keyfind(Key, 2, List) of
+            false         -> Default;
+            {_, Key, Val} -> Val
          end
    end.
 
