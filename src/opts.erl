@@ -16,16 +16,17 @@
 %%   @description
 %%      helper module to handle list of key/value options, extension to proplists
 -module(opts).
--export([check/3, get/2, get/3]).
+-export([check/3, get/2, get/3, val/2, val/3]).
+-export_type([options/0]).
 
--type opts() :: [{atom(), term()} | atom()].
+-type options() :: [{atom(), term()} | atom()].
 
 %%
 %% check option list and add default option
 -spec check(Key, Default, Opts) -> Opts when
       Key     :: atom(),
       Default :: term(),
-      Opts    :: opts().
+      Opts    :: options().
 
 check(Key, Default, Opts) ->
    case lists:keyfind(Key, 1, Opts) of
@@ -35,35 +36,82 @@ check(Key, Default, Opts) ->
 
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
--spec get(Key, Opts) -> Val when
-      Key  :: atom(),
-      Opts :: opts(),
+-spec get(Key, Opts) -> {Key, Val} when
+      Key  :: atom() | list(),
+      Opts :: options(),
       Val  :: term().
 
-get(Key, Opts) ->
+get(Key, Opts) when is_atom(Key) ->
    case lists:keyfind(Key, 1, Opts) of
-      {_, Val} -> Val;
-      _        -> 
+      {Key, _}=Val -> 
+         Val;
+      _  -> 
          case lists:member(Key, Opts) of
-            true  -> true;
+            true  -> Key;
             false -> throw({badarg, Key})
          end
+   end;
+
+get([Key|T], Opts) ->
+   case opts:get(Key, Opts, undefined) of
+      {_, undefined} -> get(T, Opts);
+      Val            -> Val
+   end;
+
+get([], _Opts) ->
+   throw(badarg).
+
+%%
+%% read option value, return default key if key do not exists
+-spec get(Key, Opts, Default) -> {Key, Val} when
+      Key  :: atom() | list(),
+      Opts :: options(),
+      Default :: term(),
+      Val  :: term().
+
+get(Key, Opts, Default) when is_atom(Key) ->
+   case lists:keyfind(Key, 1, Opts) of
+      {Key, _}=Val ->
+         Val;
+      _          -> 
+         case lists:member(Key, Opts) of
+            true  -> Key;
+            false -> {Key, Default}
+         end
+   end;
+
+get([Key|T], Opts, Default) ->
+   case opts:get(Key, Opts, undefined) of
+      {_, undefined} -> get(T, Opts, Default);
+      Val            -> Val
+   end;
+
+get([], _Opts, Default) ->
+   Default.
+
+%%
+%% read option value, throw {badarg, Key} error if key do not exists
+-spec val(Key, Opts) -> Val when
+      Key  :: atom(),
+      Opts :: options(),
+      Val  :: term().
+
+val(Key, Opts) when is_atom(Key) ->
+   case opts:get(Key, Opts) of
+      {_, Val} -> Val;
+      _        -> true
    end.
 
 %%
 %% read option value, return default key if key do not exists
--spec get(Key, Opts, Default) -> Val when
+-spec val(Key, Opts, Default) -> Val when
       Key  :: atom(),
-      Opts :: opts(),
+      Opts :: options(),
       Default :: term(),
       Val  :: term().
 
-get(Key, Opts, Default) ->
-   case lists:keyfind(Key, 1, Opts) of
-      {Key, Val} -> Val;
-      _          -> 
-         case lists:member(Key, Opts) of
-            true  -> true;
-            false -> Default
-         end
+val(Key, Opts, Default) when is_atom(Key) ->
+   case opts:get(Key, Opts, Default) of
+      {_, Val} -> Val;
+      _        -> true
    end.
