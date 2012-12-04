@@ -184,8 +184,10 @@ add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
                uri:set(path, <<Path/binary, $/, V/binary>>, Uri)
          end
    end;
-add(Item, V, Uri) when is_list(V) ->
-   add(Item, list_to_binary(V), Uri);
+add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
+   lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V);
+add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
+   add(Item, tuple_to_list(V), Uri);
 add(Item, V, Uri) -> 
    add(Item, V, new(Uri)).   
 
