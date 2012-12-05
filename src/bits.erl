@@ -23,7 +23,7 @@
 -export([cnt/1, lzc/1, lcc/2, prefix/2]).
 
 -export([pxor/2, pand/2]).
--export([btoi/1, btol/1, btoh/1, htob/1]).
+-export([cast/1, btoi/1, btol/1, btoh/1, htob/1]).
 -export([interleave/2]).
 
 
@@ -119,6 +119,24 @@ pand(X, Y) when is_bitstring(X), is_bitstring(Y) ->
    <<A:Size, _/bits>> = X,
    <<B:Size, _/bits>> = Y,
    <<(A band B):Size>>.
+
+%%
+%% cast erlang scalar type to binary
+cast(X)
+ when is_binary(X) ->
+   X;
+cast(X)
+ when is_atom(X) ->
+   atom_to_binary(X, utf8);
+cast(X)
+ when is_integer(X) ->
+   list_to_binary(integer_to_list(X));
+cast(X)
+ when is_float(X) ->
+   list_to_binary(float_to_list(X));
+cast(X)
+ when is_list(X) ->
+   list_to_binary(X).
 
 %%
 %% btoi(X) -> integer()
