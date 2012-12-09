@@ -199,8 +199,10 @@ add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
                uri:set(path, <<Path/binary, $/, V/binary>>, Uri)
          end
    end;
-add(Item, V, Uri) when is_list(V) ->
-   add(Item, list_to_binary(V), Uri);
+add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
+   lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V);
+add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
+   add(Item, tuple_to_list(V), Uri);
 add(Item, V, Uri) -> 
    add(Item, V, new(Uri)).   
 
@@ -226,7 +228,7 @@ parse_q([Op|T], X) ->
          parse_q(T, X);
       _       ->
          [Key, Val] = binary:split(X, Op),
-         {binary_to_atom(Op, utf8), unescape(Key), unescape(Val)}
+         {binary_to_atom(Op, utf8), unescape(Key), q_to_term(unescape(Val))}
    end.
 
 %%
@@ -234,7 +236,13 @@ parse_q([Op|T], X) ->
 %% q(Key, Uri, Default) -> Val
 q(Key, Uri) ->
    q(Key, Uri, undefined).
-q(Key, Uri, Default) ->
+
+q(Key, Uri, Default)
+ when is_atom(Key) ->
+   q(atom_to_binary(Key, utf8), Uri, Default);
+
+q(Key, Uri, Default)
+ when is_binary(Key) ->
    List = q(Uri),
    case lists:member(Key, List) of
       true  -> 
@@ -541,3 +549,15 @@ path_to_segments(Path) ->
       []         -> [];
       [_ | Segs] -> Segs
    end.
+
+%%
+%% used by uri:q to map query value to erlang term
+q_to_term(<<"true">>)   -> true;
+q_to_term(<<"false">>)  -> false;
+q_to_term(X) ->
+   case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
+      {match, [_, _]}       -> list_to_integer(binary_to_list(X));
+      {match, [_, _, _]}    -> list_to_float(binary_to_list(X)); 
+      {match, [_, _, _, _]} -> list_to_float(binary_to_list(X));
+      nomatch -> X
+   end.   
