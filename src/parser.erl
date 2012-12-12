@@ -17,8 +17,35 @@
 %%
 -module(parser).
 
+-export([match/2]).
 -export([datetime/2, iso8601/1]).
 -define(UNX_EPOCH, 62167219200).
+
+%%%----------------------------------------------------------------------------   
+%%%
+%%% general parsers
+%%%
+%%%----------------------------------------------------------------------------   
+
+%%
+%% matches string to regex
+match(X, RegEx)
+ when is_binary(X) ->
+   case re:run(X, RegEx) of
+      nomatch     -> nomatch;
+      match       -> [X];
+      {match, At} -> lists:map(fun(Pos) -> binary:part(X, Pos) end, At)
+   end;
+
+match(X, RegEx)
+ when is_list(X) ->
+   case re:run(X, RegEx) of
+      nomatch     -> nomatch;
+      match       -> [X];
+      {match, At} -> lists:map(fun({Pos, Len}) -> lists:sublist(X, Pos, Len) end, At)
+   end.
+
+
 
 %%%----------------------------------------------------------------------------   
 %%%
