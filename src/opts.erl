@@ -111,7 +111,7 @@ get(Key, Default, App)
    end;
 
 get([Key|T], Default, Opts) ->
-   case opts:get(Key, Opts, undefined) of
+   case opts:get(Key, undefined, Opts) of
       {_, undefined} -> get(T, Default, Opts);
       Val            -> Val
    end;
