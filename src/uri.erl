@@ -57,13 +57,17 @@
 %% parses URI into tuple, fails with badarg if invalid URI
 new() ->
    new(undefined).
+
 new(Uri) when is_binary(Uri) ->
    {Schema, Body} = tokenize(Uri),
    {uri, Schema, Body};
+
 new(Uri) when is_list(Uri) ->
    new(list_to_binary(Uri));
+
 new(Schema) when is_atom(Schema) ->
    {uri, Schema, {<<>>, <<>>, undefined, <<>>, <<>>, <<>>}};
+
 new({uri, _, _} = Uri) ->
    Uri.
 
@@ -112,6 +116,17 @@ get(q,        {uri, _, U}) ->
    erlang:element(?QUERY, U);  % do not unescape a query so that =, & are distinguished
 get(fragment, {uri, _, U}) -> 
    unescape(erlang:element(?FRAG,  U));
+get(suburi,   {uri, _, U}) ->
+   Path = erlang:element(?PATH, U),
+   Qbin = case erlang:element(?QUERY, U) of
+      <<>> -> <<>>;
+      Q    -> <<$?, Q/binary>>
+   end,
+   Fbin = case erlang:element(?FRAG, U) of
+      <<>> -> <<>>;
+      F    -> <<$#, F/binary>>
+   end,
+   <<Path/binary, Qbin/binary, Fbin/binary>>;   
 get(Item, Uri) 
  when is_binary(Uri) orelse is_list(Uri) -> 
    uri:get(Item, new(Uri)).
