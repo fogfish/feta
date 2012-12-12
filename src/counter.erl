@@ -35,14 +35,21 @@
 }).
 
 %%
-%% execution rate counter
+%% execution rate counter (samples per second)
 -record(rate, {
 	n   = 0,    % total number of samples
 	at  = nil,  % time interval
    cnt = 0,    % samples count on time interval
-	val = 0.0   % average rate
+	val = 0.0   % average rate (per second)
 }).
 
+%%
+%% value rate per second
+-record(vrps, {
+   updated = nil, % last update time stamp
+   raw     = 0,   % last raw value
+   val     = 0.0  % average change rate (per second)
+}).
 
 %%
 %% new(Type) -> Counter
@@ -53,7 +60,8 @@
 %% create a new counter
 new(mavg) -> #mavg{};
 new(time) -> #time{};
-new(rate) -> #rate{}.
+new(rate) -> #rate{};
+new(vrps) -> #vrps{}.
 
 %%
 %% add(Raw, Counter) -> Counter
@@ -86,7 +94,14 @@ add(Raw, #rate{n=N0, cnt=N1, at=T0}=C) ->
    	   C#rate{n=N0 + Raw, cnt=0, at=erlang:now(), val=(N1 + Raw) / Sec};
    	_ ->
 			C#rate{n=N0 + Raw, cnt=N1 + Raw}
-	end.
+	end;
+
+add(Raw, #vrps{updated=nil}=C) ->
+   C#vrps{updated=erlang:now(), raw=Raw};
+
+add(Raw, #vrps{updated=T0, raw=N}=C) ->
+   Sec = timer:now_diff(erlang:now(), T0) / 1000000,
+   C#vrps{updated=erlang:now(), raw=Raw, val=(Raw - N) / Sec}.
 
 %%
 %% val(Counter) -> Value
@@ -94,7 +109,8 @@ add(Raw, #rate{n=N0, cnt=N1, at=T0}=C) ->
 %% return counter value
 val(#mavg{val=Val}) -> erlang:round(Val);
 val(#time{val=Val}) -> Val;
-val(#rate{val=Val}) -> Val.
+val(#rate{val=Val}) -> Val;
+val(#vrps{val=Val}) -> Val.
 
 %%
 %% return number of observations
