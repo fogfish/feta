@@ -140,7 +140,7 @@ val(Key, Opts) when is_atom(Key) ->
       Default :: term(),
       Val  :: term().
 
-val(Key, Opts, Default) when is_atom(Key) ->
+val(Key, Default, Opts) when is_atom(Key) ->
    case opts:get(Key, Default, Opts) of
       {_, Val} -> Val;
       _        -> true
