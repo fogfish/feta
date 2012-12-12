@@ -19,19 +19,31 @@
 -export([check/3, get/2, get/3, val/2, val/3]).
 -export_type([options/0]).
 
--type options() :: [{atom(), term()} | atom()].
+-type options() :: [{atom(), term()} | atom()] | atom().
 
 %%
-%% check option list and add default option
+%% check either option list or application environment 
+%% and add default option if key do not exists
 -spec check(Key, Default, Opts) -> Opts when
       Key     :: atom(),
       Default :: term(),
       Opts    :: options().
 
-check(Key, Default, Opts) ->
+check(Key, Default, Opts)
+ when is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       false -> [{Key, Default} | Opts];
       _     -> Opts
+   end;
+
+check(Key, Default, App)
+ when is_atom(App) ->
+   case application:get_env(App, Key) of
+      undefined -> 
+         application:set_env(App, Key, Default),
+         application:get_all_env(App);
+      _         ->
+         application:get_all_env(App)
    end.
 
 %%
@@ -41,7 +53,8 @@ check(Key, Default, Opts) ->
       Opts :: options(),
       Val  :: term().
 
-get(Key, Opts) when is_atom(Key) ->
+get(Key, Opts)
+ when is_atom(Key), is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       {Key, _}=Val -> 
          Val;
@@ -52,8 +65,16 @@ get(Key, Opts) when is_atom(Key) ->
          end
    end;
 
+get(Key, App)
+ when is_atom(Key), is_atom(App) ->
+   case application:get_env(App, Key) of
+      {ok, true} -> Key;
+      {ok,  Val} -> {Key, Val};
+      undefined  -> throw({badarg, Key})
+   end;
+
 get([Key|T], Opts) ->
-   case opts:get(Key, Opts, undefined) of
+   case opts:get(Key, undefined, Opts) of
       {_, undefined} -> get(T, Opts);
       Val            -> Val
    end;
@@ -63,13 +84,14 @@ get([], _Opts) ->
 
 %%
 %% read option value, return default key if key do not exists
--spec get(Key, Opts, Default) -> {Key, Val} when
+-spec get(Key, Default, Opts) -> {Key, Val} when
       Key  :: atom() | list(),
       Opts :: options(),
       Default :: term(),
       Val  :: term().
 
-get(Key, Opts, Default) when is_atom(Key) ->
+get(Key, Default, Opts)
+ when is_atom(Key), is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       {Key, _}=Val ->
          Val;
@@ -80,13 +102,21 @@ get(Key, Opts, Default) when is_atom(Key) ->
          end
    end;
 
-get([Key|T], Opts, Default) ->
+get(Key, Default, App)
+ when is_atom(Key), is_atom(App) ->
+   case application:get_env(App, Key) of
+      {ok, true} -> Key;
+      {ok,  Val} -> {Key, Val};
+      undefined  -> {Key, Default}
+   end;
+
+get([Key|T], Default, Opts) ->
    case opts:get(Key, Opts, undefined) of
-      {_, undefined} -> get(T, Opts, Default);
+      {_, undefined} -> get(T, Default, Opts);
       Val            -> Val
    end;
 
-get([], _Opts, Default) ->
+get([], Default, _Opts) ->
    Default.
 
 %%
@@ -104,14 +134,14 @@ val(Key, Opts) when is_atom(Key) ->
 
 %%
 %% read option value, return default key if key do not exists
--spec val(Key, Opts, Default) -> Val when
+-spec val(Key, Default, Opts) -> Val when
       Key  :: atom(),
       Opts :: options(),
       Default :: term(),
       Val  :: term().
 
 val(Key, Opts, Default) when is_atom(Key) ->
-   case opts:get(Key, Opts, Default) of
+   case opts:get(Key, Default, Opts) of
       {_, Val} -> Val;
       _        -> true
    end.
