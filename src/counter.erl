@@ -100,9 +100,14 @@ add(Raw, #rps{n=N0, cnt=N1, at=T0}=C) ->
 add(Raw, #rate{updated=nil}=C) ->
    C#rate{updated=erlang:now(), raw=Raw};
 
-add(Raw, #rate{updated=T0, raw=N}=C) ->
+add(Raw, #rate{updated=T0, raw=N}=C)
+ when Raw >= N ->
    Sec = timer:now_diff(erlang:now(), T0) / 1000000,
-   C#rate{updated=erlang:now(), raw=Raw, val=(Raw - N) / Sec}.
+   C#rate{updated=erlang:now(), raw=Raw, val=(Raw - N) / Sec};
+
+add(Raw, #rate{updated=T0, raw=N}=C)
+ when Raw < N ->
+   C#rate{updated=erlang:now(), raw=Raw}. % reset counter
 
 %%
 %% val(Counter) -> Value
