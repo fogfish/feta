@@ -35,8 +35,8 @@
 }).
 
 %%
-%% execution rate counter (samples per second)
--record(rate, {
+%% rate per second
+-record(rps, {
 	n   = 0,    % total number of samples
 	at  = nil,  % time interval
    cnt = 0,    % samples count on time interval
@@ -45,7 +45,7 @@
 
 %%
 %% value rate per second
--record(vrps, {
+-record(rate, {
    updated = nil, % last update time stamp
    raw     = 0,   % last raw value
    val     = 0.0  % average change rate (per second)
@@ -60,8 +60,8 @@
 %% create a new counter
 new(mavg) -> #mavg{};
 new(time) -> #time{};
-new(rate) -> #rate{};
-new(vrps) -> #vrps{}.
+new(rps)  -> #rps{};
+new(rate) -> #rate{}.
 
 %%
 %% add(Raw, Counter) -> Counter
@@ -84,24 +84,25 @@ add(idle,#time{n=N, at=T0, val=Val}) ->
    #time{n=N + 1, at=nil, val=(N * Val + Raw) div (N + 1)};
 
 %%
-add(Raw, #rate{n=N0, cnt=N1, at=nil}=C) ->
-   C#rate{n=N0 + Raw, cnt=N1 + Raw, at=erlang:now()};
+add(Raw, #rps{n=N0, cnt=N1, at=nil}=C) ->
+   C#rps{n=N0 + Raw, cnt=N1 + Raw, at=erlang:now()};
 
-add(Raw, #rate{n=N0, cnt=N1, at=T0}=C) ->
+add(Raw, #rps{n=N0, cnt=N1, at=T0}=C) ->
    case timer:now_diff(erlang:now(), T0) of
    	T when T > 1000000 ->
    	   Sec = T / 1000000,
-   	   C#rate{n=N0 + Raw, cnt=0, at=erlang:now(), val=(N1 + Raw) / Sec};
+   	   C#rps{n=N0 + Raw, cnt=0, at=erlang:now(), val=(N1 + Raw) / Sec};
    	_ ->
-			C#rate{n=N0 + Raw, cnt=N1 + Raw}
+			C#rps{n=N0 + Raw, cnt=N1 + Raw}
 	end;
 
-add(Raw, #vrps{updated=nil}=C) ->
-   C#vrps{updated=erlang:now(), raw=Raw};
+%%
+add(Raw, #rate{updated=nil}=C) ->
+   C#rate{updated=erlang:now(), raw=Raw};
 
-add(Raw, #vrps{updated=T0, raw=N}=C) ->
+add(Raw, #rate{updated=T0, raw=N}=C) ->
    Sec = timer:now_diff(erlang:now(), T0) / 1000000,
-   C#vrps{updated=erlang:now(), raw=Raw, val=(Raw - N) / Sec}.
+   C#rate{updated=erlang:now(), raw=Raw, val=(Raw - N) / Sec}.
 
 %%
 %% val(Counter) -> Value
@@ -109,14 +110,14 @@ add(Raw, #vrps{updated=T0, raw=N}=C) ->
 %% return counter value
 val(#mavg{val=Val}) -> erlang:round(Val);
 val(#time{val=Val}) -> Val;
-val(#rate{val=Val}) -> Val;
-val(#vrps{val=Val}) -> Val.
+val(#rps{val=Val})  -> Val;
+val(#rate{val=Val}) -> Val.
 
 %%
 %% return number of observations
 len(#mavg{n=N}) -> N;
 len(#time{n=N}) -> N;
-len(#rate{n=N}) -> N.
+len(#rps{n=N})  -> N.
 
 
 
