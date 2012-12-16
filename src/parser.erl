@@ -17,9 +17,51 @@
 %%
 -module(parser).
 
+% scalar data type
+-export([int/1, float/1, scalar/1]).
 -export([match/2]).
 -export([datetime/2, iso8601/1]).
 -define(UNX_EPOCH, 62167219200).
+
+%%%----------------------------------------------------------------------------   
+%%%
+%%% scalar data type
+%%%
+%%%----------------------------------------------------------------------------   
+
+%%
+%%
+int(X) when is_list(X) ->
+   list_to_integer(X);
+int(X) when is_binary(X) ->
+   list_to_integer(binary_to_list(X)).
+
+%%
+%%
+float(X) when is_list(X) ->
+   list_to_float(X);
+float(X) when is_binary(X) ->
+   list_to_float(binary_to_list(X)).
+
+%%
+%%
+scalar(X) when is_binary(X) ->
+   % binary to erlang
+   case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
+      {match, [_, _]}       -> list_to_integer(binary_to_list(X));
+      {match, [_, _, _]}    -> list_to_float(binary_to_list(X)); 
+      {match, [_, _, _, _]} -> list_to_float(binary_to_list(X));
+      nomatch -> 
+         % binary is reference to part of large binary received from server
+         % copy binary to reduce size 
+         case binary:referenced_byte_size(X) of
+            Size when Size > 2 * byte_size(X) -> 
+               binary:copy(X);
+            _ -> 
+               X
+         end
+   end.
+
 
 %%%----------------------------------------------------------------------------   
 %%%

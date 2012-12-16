@@ -17,8 +17,35 @@
 %%
 -module(format).
 
+%% scalar data type
+
+% scalar data type
+-export([scalar/1, decimal/1, decimal/2]).
 -export([datetime/2]).
 -define(UNX_EPOCH, 62167219200).
+
+%%%----------------------------------------------------------------------------   
+%%%
+%%% scalar data type
+%%%
+%%%----------------------------------------------------------------------------   
+
+scalar(X) when is_binary(X) -> X;
+scalar(X) when is_atom(X)   -> atom_to_list(X);
+scalar(X) when is_integer(X)-> integer_to_list(X);
+scalar(X) when is_float(X)  -> float_to_list(X);
+scalar(X) when is_list(X)   -> X.
+
+decimal(X)    when is_float(X) -> io_lib:format("~f", [X]).
+decimal(1, X) when is_float(X) -> io_lib:format("~.1f", [X]);
+decimal(2, X) when is_float(X) -> io_lib:format("~.2f", [X]);
+decimal(3, X) when is_float(X) -> io_lib:format("~.3f", [X]);
+decimal(4, X) when is_float(X) -> io_lib:format("~.4f", [X]);
+decimal(5, X) when is_float(X) -> io_lib:format("~.5f", [X]);
+decimal(6, X) when is_float(X) -> io_lib:format("~.6f", [X]);
+decimal(7, X) when is_float(X) -> io_lib:format("~.7f", [X]);
+decimal(8, X) when is_float(X) -> io_lib:format("~.8f", [X]);
+decimal(9, X) when is_float(X) -> io_lib:format("~.9f", [X]).
 
 
 %%%----------------------------------------------------------------------------   
