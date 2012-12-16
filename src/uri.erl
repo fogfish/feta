@@ -200,11 +200,16 @@ add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
          end
    end;
 add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
-   lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V);
+   case io_lib:printable_unicode_list(V) of
+      true  -> 
+         add(Item, list_to_binary(V), Uri);
+      false -> 
+         lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V)
+   end;
 add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
    add(Item, tuple_to_list(V), Uri);
-add(Item, V, Uri) -> 
-   add(Item, V, new(Uri)).   
+add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
+   add(Item, atom_to_binary(V, utf8), Uri).
 
 %%
 %% q(Uri) -> [{Key, Val}]
