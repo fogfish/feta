@@ -48,7 +48,7 @@
 -define(FRAG,  6).
 
 %% query operation
--define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$=>>, <<$>>>, <<$<>>]).
+-define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$>>>, <<$<>>, <<$=>>]).
 
 %%
 %% new(URI) -> {uri, ...}
@@ -211,29 +211,51 @@ add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
 add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
    add(Item, atom_to_binary(V, utf8), Uri).
 
+%%%------------------------------------------------------------------
+%%%
+%%% uri query
+%%%
+%%%------------------------------------------------------------------
+
 %%
 %% q(Uri) -> [{Key, Val}]
 %%
 %% return URI query as list of Key/Val pairs
-q(Uri) ->
-   lists:foldl(
-      fun
-      (<<>>, Acc) -> Acc;
-      (X,    Acc) -> [parse_q(?COMPARE, X) | Acc]
-      end,
-      [],
-      binary:split(uri:get(q, Uri), <<$&>>, [global])
-   ).
+q(List)
+ when is_list(List) ->
+   [H | T] = [create_query_item(X) || X <- List],
+   list_to_binary([H | [ [$&, Y] || Y <- T]]);
 
-parse_q([], X)  ->
+q({uri, _, _}=Uri) ->
+   [parse_query_item(?COMPARE, X) || X <- binary:split(uri:get(q, Uri), <<$&>>, [global])]. 
+
+create_query_item(Key)
+ when is_atom(Key) ->
+   escape(Key);
+
+create_query_item({Key, Val})
+ when is_atom(Key) ->
+   <<(escape(Key))/binary, $=, (escape(Val))/binary>>.
+
+parse_query_item([], X)  ->
    unescape(X);
-parse_q([Op|T], X) ->
-   case binary:match(X, Op) of
+
+parse_query_item([<<$=>>=RegEx|T], X) ->
+   case binary:match(X, RegEx) of
       nomatch -> 
-         parse_q(T, X);
+         parse_query_item(T, X);
       _       ->
-         [Key, Val] = binary:split(X, Op),
-         {binary_to_atom(Op, utf8), unescape(Key), q_to_term(unescape(Val))}
+         [Key, Val] = binary:split(X, RegEx),
+         {unescape(Key), parser:scalar(unescape(Val))}
+   end;
+
+parse_query_item([RegEx|T], X) ->
+   case binary:match(X, RegEx) of
+      nomatch -> 
+         parse_query_item(T, X);
+      _       ->
+         [Key, Val] = binary:split(X, RegEx),
+         {binary_to_atom(RegEx, utf8), unescape(Key), parser:scalar(unescape(Val))}
    end.
 
 %%
@@ -374,92 +396,30 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
       true -> <<>>
    end,
    <<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>.
-         
+
+
 %%%------------------------------------------------------------------
 %%%
-%%% Private
+%%% uri escape/unescape
 %%%
 %%%------------------------------------------------------------------
-
-%%      URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
-tokenize(Uri0) ->
-   % uri
-   {Scheme, Uri1} = p_schema(Uri0),
-   {Heir,   Uri2} = suffix(Uri1, <<$?>>),
-   {Query,  Frag} = suffix(Uri2, <<$#>>),
-   % heir
-   {Auth0, Path} = case Heir of
-      <<"//", H/binary>> -> 
-         case suffix(H, <<$/>>) of
-            {A, <<>>} -> {A, <<>>};
-            {A,    P} -> {A, <<$/, P/binary>>}
-         end;
-      _                  -> {<<>>, Heir}
-   end,
-   {User, Host0} = prefix(Auth0, <<$@>>),
-   {Host,  Pbin} = suffix(Host0, <<$:>>),
-   % parse port
-   Port = case Pbin of
-      <<>> ->  undefined;
-      _    ->  list_to_integer(binary_to_list(Pbin))
-   end,
-   {Scheme, {User, Host, Port, Path, Query, Frag}}.
-
-%%
-%%
-p_schema(Uri0) ->
-   case prefix(Uri0, <<$:>>) of
-      {<<>>, Uri} -> 
-         {undefined, Uri};
-      {Scheme, Uri} ->
-         case binary:split(Scheme, <<$+>>, [global]) of
-            [S] -> {binary_to_atom(S, utf8), Uri};
-             S  -> {lists:map(fun(X) -> binary_to_atom(X, utf8) end, S), Uri}
-         end
-   end.
-   
-%%
-%% split Uri substring at token T, 
-%% fails if T is not found
-% split(Uri, T) ->
-%    case binary:split(Uri, T) of
-%       [Token, Rest] -> {Token, Rest};
-%       _             -> throw(baduri)
-%    end.
-
-%%
-%% split Uri substring at token T, 
-%% return empty suffix if T is not found    
-suffix(Uri, T) ->
-   case binary:split(Uri, T) of
-      [Token, Rest] -> {Token, Rest};
-      _             -> {Uri,   <<>>}
-   end.
-
-%%
-%% split Uri substring at token T,
-%% return empty prefix if T is not found
-prefix(Uri, T) ->
-   case binary:split(Uri, T) of
-      [Token, Rest] -> {Token, Rest};
-      _             -> {<<>>,  Uri}
-   end.   
 
 %%
 %% escape
-escape(Bin) ->
-   escape(Bin, <<>>).
+escape(X) when is_binary(X) -> escape(X, <<>>);
+escape(X) when is_list(X)   -> escape(list_to_binary(X));
+escape(X) when is_atom(X)   -> escape(atom_to_binary(X, utf8)).
+
 
 escape(<<H:8, Bin/binary>>, Acc) when H >= $a, H =< $z ->
    escape(Bin, <<Acc/binary, H>>);
-escape(<<H:8, Bin/binary>>, Acc) when H >= $A, H =< $z ->
+escape(<<H:8, Bin/binary>>, Acc) when H >= $A, H =< $Z ->
    escape(Bin, <<Acc/binary, H>>);
 escape(<<H:8, Bin/binary>>, Acc) when H >= $0, H =< $9 ->
    escape(Bin, <<Acc/binary, H>>);
 
 escape(<<$ , Bin/binary>>, Acc) ->
    escape(Bin, <<Acc/binary, $+>>);
-
 
 %% unreserved "-" | "_" | "." | "!" | "~" | "*" | "'" | "(" | ")"
 escape(<<$-, Bin/binary>>, Acc) ->
@@ -534,6 +494,80 @@ decode(<<>>, Acc) ->
    Acc.
 
 
+
+
+         
+%%%------------------------------------------------------------------
+%%%
+%%% private
+%%%
+%%%------------------------------------------------------------------
+
+%%      URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
+tokenize(Uri0) ->
+   % uri
+   {Scheme, Uri1} = p_schema(Uri0),
+   {Heir,   Uri2} = suffix(Uri1, <<$?>>),
+   {Query,  Frag} = suffix(Uri2, <<$#>>),
+   % heir
+   {Auth0, Path} = case Heir of
+      <<"//", H/binary>> -> 
+         case suffix(H, <<$/>>) of
+            {A, <<>>} -> {A, <<>>};
+            {A,    P} -> {A, <<$/, P/binary>>}
+         end;
+      _                  -> {<<>>, Heir}
+   end,
+   {User, Host0} = prefix(Auth0, <<$@>>),
+   {Host,  Pbin} = suffix(Host0, <<$:>>),
+   % parse port
+   Port = case Pbin of
+      <<>> ->  undefined;
+      _    ->  list_to_integer(binary_to_list(Pbin))
+   end,
+   {Scheme, {User, Host, Port, Path, Query, Frag}}.
+
+%%
+%%
+p_schema(Uri0) ->
+   case prefix(Uri0, <<$:>>) of
+      {<<>>, Uri} -> 
+         {undefined, Uri};
+      {Scheme, Uri} ->
+         case binary:split(Scheme, <<$+>>, [global]) of
+            [S] -> {binary_to_atom(S, utf8), Uri};
+             S  -> {lists:map(fun(X) -> binary_to_atom(X, utf8) end, S), Uri}
+         end
+   end.
+   
+%%
+%% split Uri substring at token T, 
+%% fails if T is not found
+% split(Uri, T) ->
+%    case binary:split(Uri, T) of
+%       [Token, Rest] -> {Token, Rest};
+%       _             -> throw(baduri)
+%    end.
+
+%%
+%% split Uri substring at token T, 
+%% return empty suffix if T is not found    
+suffix(Uri, T) ->
+   case binary:split(Uri, T) of
+      [Token, Rest] -> {Token, Rest};
+      _             -> {Uri,   <<>>}
+   end.
+
+%%
+%% split Uri substring at token T,
+%% return empty prefix if T is not found
+prefix(Uri, T) ->
+   case binary:split(Uri, T) of
+      [Token, Rest] -> {Token, Rest};
+      _             -> {<<>>,  Uri}
+   end.   
+
+
 %%
 %% maps schema to default ports
 schema_to_port([S| _], P)         -> schema_to_port(S, P);
@@ -555,14 +589,14 @@ path_to_segments(Path) ->
       [_ | Segs] -> Segs
    end.
 
-%%
-%% used by uri:q to map query value to erlang term
-q_to_term(<<"true">>)   -> true;
-q_to_term(<<"false">>)  -> false;
-q_to_term(X) ->
-   case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
-      {match, [_, _]}       -> list_to_integer(binary_to_list(X));
-      {match, [_, _, _]}    -> list_to_float(binary_to_list(X)); 
-      {match, [_, _, _, _]} -> list_to_float(binary_to_list(X));
-      nomatch -> X
-   end.   
+% %%
+% %% used by uri:q to map query value to erlang term
+% q_to_term(<<"true">>)   -> true;
+% q_to_term(<<"false">>)  -> false;
+% q_to_term(X) ->
+%    case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
+%       {match, [_, _]}       -> list_to_integer(binary_to_list(X));
+%       {match, [_, _, _]}    -> list_to_float(binary_to_list(X)); 
+%       {match, [_, _, _, _]} -> list_to_float(binary_to_list(X));
+%       nomatch -> X
+%    end.   

@@ -45,6 +45,10 @@ float(X) when is_binary(X) ->
 
 %%
 %%
+scalar(<<"true">>) -> 
+   true;
+scalar(<<"false">>) -> 
+   false;
 scalar(X) when is_binary(X) ->
    % binary to erlang
    case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
