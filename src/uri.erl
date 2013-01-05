@@ -422,7 +422,8 @@ escape(<<H:8, Bin/binary>>, Acc) when H >= $0, H =< $9 ->
    escape(Bin, <<Acc/binary, H>>);
 
 escape(<<$ , Bin/binary>>, Acc) ->
-   escape(Bin, <<Acc/binary, $+>>);
+   escape(Bin, <<Acc/binary, $%, $2, $0>>);
+   %escape(Bin, <<Acc/binary, $+>>);
 
 %% unreserved "-" | "_" | "." | "!" | "~" | "*" | "'" | "(" | ")"
 escape(<<$-, Bin/binary>>, Acc) ->
