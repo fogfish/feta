@@ -35,7 +35,7 @@
 -module(uri).
 
 -export([new/0, new/1, check/2]).
--export([get/2, getl/2, set/3, add/3]).
+-export([get/2, set/3, add/3]).
 -export([match/2, to_binary/1]).
 -export([q/1, q/2, q/3]).
 -export([unescape/1, escape/1]).
@@ -130,12 +130,6 @@ get(suburi,   {uri, _, U}) ->
 get(Item, Uri) 
  when is_binary(Uri) orelse is_list(Uri) -> 
    uri:get(Item, new(Uri)).
-
-getl(Item, Uri) ->
-   case uri:get(Item, Uri) of
-      Val when is_binary(Val) -> binary_to_list(Val);
-      Val -> Val
-   end.
 
 %%
 %% set(Item, V, Uri) -> NUri
@@ -412,9 +406,12 @@ to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
 
 %%
 %% escape
-escape(X) when is_binary(X) -> escape(X, <<>>);
-escape(X) when is_list(X)   -> escape(list_to_binary(X));
-escape(X) when is_atom(X)   -> escape(atom_to_binary(X, utf8)).
+escape(X) when is_binary(X) ->
+   escape(X, <<>>);
+escape(X) when is_float(X)  ->
+   escape(list_to_binary(format:decimal(X)));
+escape(X) ->
+   escape(list_to_binary(format:scalar(X))).
 
 
 escape(<<H:8, Bin/binary>>, Acc) when H >= $a, H =< $z ->
