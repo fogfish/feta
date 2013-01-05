@@ -16,7 +16,7 @@
 %%   @description
 %%      helper module to handle list of key/value options, extension to proplists
 -module(opts).
--export([check/3, get/2, get/3, val/2, val/3]).
+-export([check/3, check/2, get/2, get/3, val/2, val/3]).
 -export_type([options/0]).
 
 -type options() :: [{atom(), term()} | atom()] | atom().
@@ -45,6 +45,23 @@ check(Key, Default, App)
       _         ->
          application:get_all_env(App)
    end.
+
+check({Key, Default}, Opts)
+ when is_list(Opts) ->
+   case lists:keyfind(Key, 1, Opts) of
+      false -> [{Key, Default} | Opts];
+      _     -> Opts
+   end;
+
+check([Key|T], Opts)
+ when is_list(Opts) ->
+   check(T, check(Key, Opts));
+
+check([], Opts)
+ when is_list(Opts) ->
+   Opts.
+
+
 
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
