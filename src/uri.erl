@@ -581,6 +581,7 @@ schema_to_port(ws,     undefined) -> 80;
 schema_to_port(ssl,    undefined) -> 443;  % custom schema for ssl sensors 
 schema_to_port(https,  undefined) -> 443;
 schema_to_port(wss,    undefined) -> 443;
+schema_to_port(mysql,  undefined) -> 3306;
 %schema_to_port(undefined,    undefined) -> undefined;
 schema_to_port(_,      undefined) -> undefined;
 schema_to_port(_,   Port) when is_list(Port) -> list_to_integer(binary_to_list(Port));
