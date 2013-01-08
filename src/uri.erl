@@ -97,8 +97,11 @@ check(List, Uri) ->
 %%
 get(schema,   {uri, S, _}) -> 
    S;
-get(userinfo, {uri, _, U}) -> 
-   unescape(erlang:element(?USER, U));
+get(userinfo, {uri, _, U}) ->
+   case binary:split(erlang:element(?USER, U), <<$:>>) of
+      [User, Pass] -> {unescape(User), unescape(Pass)};
+      [Info]       -> unescape(Info)
+   end;
 get(host,     {uri, _, U}) -> 
    erlang:element(?HOST, U);
 get(port,     {uri, S, U}) -> 
