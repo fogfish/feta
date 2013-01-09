@@ -265,22 +265,22 @@ parse_query_item([RegEx|T], X) ->
 %% q(Key, Uri) -> Val | true | undefined
 %% q(Key, Uri, Default) -> Val
 q(Key, Uri) ->
-   q(Key, Uri, undefined).
+   q(Key, undefined, Uri).
 
-q(Key, Uri, Default)
+q(Key, Default, Uri)
  when is_atom(Key) ->
-   q(atom_to_binary(Key, utf8), Uri, Default);
+   q(atom_to_binary(Key, utf8), Default, Uri);
 
-q(Key, Uri, Default)
+q(Key, Default, Uri)
  when is_binary(Key) ->
    List = q(Uri),
    case lists:member(Key, List) of
       true  -> 
          true;
       false ->
-         case lists:keyfind(Key, 2, List) of
-            false         -> Default;
-            {_, Key, Val} -> Val
+         case lists:keyfind(Key, 1, List) of
+            {Key, Val} -> Val;
+            _          -> Default
          end
    end.
 
