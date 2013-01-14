@@ -17,10 +17,11 @@
 %%
 -module(hash).
 
--export([ fnv32/1]).
+-export([fnv32/1]).
 -export([fnv32a/1]).
 -export([fnv32m/1]).
 -export([seq31/1, seq32/1]).
+-export([fold32/1]).
 
 %%
 %%  FNV32 initial state
@@ -109,4 +110,24 @@ seq31(N) ->
 
 seq32(N) ->
    (N bsr 1) bor ((((N bsr 7) bxor (N bsr 5) bxor (N bsr 3) bxor (N bsr 2) bxor (N bsr 1) bxor N) band 1) bsl 30).
+
+
+%%
+%% fold32
+fold32(Data) when is_binary(Data) ->
+   fold32(Data, 0).
+
+fold32(<<H:32, T/binary>>, Hash) ->
+   fold32(T, Hash bxor H);
+fold32(<<H:24>>, Hash) ->
+   Hash bxor H;
+fold32(<<H:16>>, Hash) ->
+   Hash bxor H;
+fold32(<<H:8>>, Hash) ->
+   Hash bxor H;
+fold32(<<>>, Hash) ->
+   Hash.
+
+
+
 
