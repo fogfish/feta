@@ -16,7 +16,7 @@
 %%   @description
 %%      helper module to handle list of key/value options, extension to proplists
 -module(opts).
--export([check/3, check/2, get/2, get/3, val/2, val/3]).
+-export([check/3, check/2, filter/2, get/2, get/3, val/2, val/3]).
 -export_type([options/0]).
 
 -type options() :: [{atom(), term()} | atom()] | atom().
@@ -61,7 +61,21 @@ check([], Opts)
  when is_list(Opts) ->
    Opts.
 
+%%
+%% perform white list filtering of supplied konduit options
+filter(Filter, Opts)
+ when is_list(Opts) ->
+   lists:filter(
+      fun
+         ({X, _}) -> lists:member(X, Filter);
+         (X)      -> lists:member(X, Filter)  
+      end, 
+      Opts
+   );
 
+filter(Filter, App)
+ when is_atom(App) ->
+   filter(Filter, application:get_all_env(App)).
 
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
