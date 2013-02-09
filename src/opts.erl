@@ -19,14 +19,17 @@
 -export([check/3, check/2, filter/2, get/2, get/3, val/2, val/3]).
 -export_type([options/0]).
 
--type options() :: [{atom(), term()} | atom()] | atom().
+-type key()     :: atom() | binary().
+-type val()     :: term().
+-type app()     :: atom().
+-type options() :: [{key(), val()} | key()] | app().
 
 %%
 %% check either option list or application environment 
 %% and add default option if key do not exists
 -spec check(Key, Default, Opts) -> Opts when
-      Key     :: atom(),
-      Default :: term(),
+      Key     :: key(),
+      Default :: val(),
       Opts    :: options().
 
 check(Key, Default, Opts)
@@ -80,12 +83,24 @@ filter(Filter, App)
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
 -spec get(Key, Opts) -> {Key, Val} when
-      Key  :: atom() | list(),
+      Key  :: key() | list(),
       Opts :: options(),
       Val  :: term().
 
 get(Key, Opts)
  when is_atom(Key), is_list(Opts) ->
+   case lists:keyfind(Key, 1, Opts) of
+      {Key, _}=Val -> 
+         Val;
+      _  -> 
+         case lists:member(Key, Opts) of
+            true  -> Key;
+            false -> throw({badarg, Key})
+         end
+   end;
+
+get(Key, Opts)
+ when is_binary(Key), is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       {Key, _}=Val -> 
          Val;
@@ -133,6 +148,18 @@ get(Key, Default, Opts)
          end
    end;
 
+get(Key, Default, Opts)
+ when is_binary(Key), is_list(Opts) ->
+   case lists:keyfind(Key, 1, Opts) of
+      {Key, _}=Val ->
+         Val;
+      _          -> 
+         case lists:member(Key, Opts) of
+            true  -> Key;
+            false -> {Key, Default}
+         end
+   end;
+
 get(Key, Default, App)
  when is_atom(Key), is_atom(App) ->
    case application:get_env(App, Key) of
@@ -157,7 +184,7 @@ get([], Default, _Opts) ->
       Opts :: options(),
       Val  :: term().
 
-val(Key, Opts) when is_atom(Key) ->
+val(Key, Opts) ->
    case opts:get(Key, Opts) of
       {_, Val} -> Val;
       _        -> true
@@ -171,7 +198,7 @@ val(Key, Opts) when is_atom(Key) ->
       Default :: term(),
       Val  :: term().
 
-val(Key, Default, Opts) when is_atom(Key) ->
+val(Key, Default, Opts) ->
    case opts:get(Key, Default, Opts) of
       {_, Val} -> Val;
       _        -> true

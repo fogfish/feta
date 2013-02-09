@@ -16,7 +16,7 @@
 %%  @description
 %%
 -module(ring_tests).
--include_lib("eunit/include/eunit.hrl").
+%-include_lib("eunit/include/eunit.hrl").
 
 join_leave_by_addr_test() ->
    R0 = ring:new(),
