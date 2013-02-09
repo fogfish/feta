@@ -1,3 +1,6 @@
+%%
+-define(ISO8601, "%Y%m%dT%H%M%SZ").
+-define(UNXTIME, "%s").
 
 %%
 %% map record to key/val list
