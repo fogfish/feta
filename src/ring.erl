@@ -323,7 +323,6 @@ token_leave(Node, #ring{node=S, shard=Q, master=Master, shards=Shards}=R) ->
             shards = L
          }
    end.
- d
 
 %%
 %% return list of N tokens for each node (ordered by token weight)
