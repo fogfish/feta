@@ -19,7 +19,7 @@
 -module(ring).
 
 -export([new/0, new/1, join/2, join/3, leave/2]).
--export([address/2, members/1, is_member/2, shards/1, shards/2, whereis/2]).
+-export([address/2, members/1, is_member/2, is_member/3, shards/1, shards/2, whereis/2]).
 -export([successors/2, predecessors/2]).
 
 %%
@@ -96,6 +96,9 @@ members(#ring{shards=Shards}) ->
 %% check if node belongs to ring 
 is_member(Node, #ring{shards=Shards}) ->
    [X || {_, X} <- Shards, X =:= Node] =/= [].
+
+is_member(N, Node, #ring{shards=Shards}) ->
+   [X || {_, X} <- Shards, erlang:element(N, X) =:= Node] =/= [].
 
 %%
 %% shards(Node, Ring) -> Shards
