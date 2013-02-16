@@ -137,9 +137,12 @@ predecessors(Addr, #ring{n=N, shards=Shards})
        fun({X, _}) -> X >= Addr end,
        Shards
    ),
-   lists:sublist(
-      unique(lists:reverse(Tail) ++ lists:reverse(Head)),
-      N
+   lists:filter(
+      fun(X) -> X =/= undefined end,
+      lists:sublist(
+         unique(lists:reverse(Tail) ++ lists:reverse(Head)),
+         N
+      )
    );
 
 predecessors(Key, Ring) ->
@@ -155,9 +158,12 @@ successors(Addr, #ring{n=N, shards=Shards})
        fun({X, _}) -> X >= Addr end,
        Shards
    ),
-   lists:sublist(
-      unique(Head ++ Tail),
-      N
+   lists:filter(
+      fun(X) -> X =/= undefined end,
+      lists:sublist(
+         unique(Head ++ Tail),
+         N
+      )
    );
 
 successors(Key, Ring) ->
