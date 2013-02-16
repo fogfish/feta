@@ -19,7 +19,7 @@
 -module(ring).
 
 -export([new/0, new/1, join/2, join/3, leave/2]).
--export([address/2, members/1, is_member/2, is_member/3, shards/1, shards/2, whereis/2]).
+-export([address/2, members/1, is_member/2, shards/1, shards/2, whereis/2]).
 -export([successors/2, predecessors/2]).
 
 %%
@@ -30,6 +30,7 @@
    hash   = md5,    % hash algorithm
    shard  =   8,    % number of shards
    node   =   0,    % number of nodes
+   master =  [],    % list of node master shards
    shards =  []     % list of shards
 }).
 
@@ -59,13 +60,8 @@ init([{shard, X} | Opts], R) ->
 init([{_, _} | Opts], R) ->
    init(Opts, R);
 
-init([], #ring{m=M, shard=Q}=R) ->
-   Top = trunc(math:pow(2,M)),
-   Inc = Top div Q,
-   R#ring{
-      node   = 0,
-      shards = [{X, undefined} || X <- lists:seq(Inc, Top, Inc)]
-   }.
+init([], R) ->
+   reset(R).
 
 %%
 %% address(Key, Ring) -> Addr
@@ -88,17 +84,18 @@ address(X, #ring{hash=sha1, m=M})->
 %%
 %% return list of ring members
 members(#ring{shards=Shards}) ->
-   lists:usort([X || {_, X} <- Shards]).
+   lists:usort([X || {_, X} <- Shards, X =/= undefined]).
 
 %%
 %% is_member(Node, Ring) -> true | false
 %%
-%% check if node belongs to ring 
+%% check if node belongs to ring
+is_member(Fun, #ring{shards=Shards}) 
+ when is_function(Fun) ->
+   [X || {_, X} <- Shards, Fun(X)] =/= [];
+
 is_member(Node, #ring{shards=Shards}) ->
    [X || {_, X} <- Shards, X =:= Node] =/= [].
-
-is_member(N, Node, #ring{shards=Shards}) ->
-   [X || {_, X} <- Shards, erlang:element(N, X) =:= Node] =/= [].
 
 %%
 %% shards(Node, Ring) -> Shards
@@ -106,6 +103,10 @@ is_member(N, Node, #ring{shards=Shards}) ->
 %% return list of shards owned by ring or node
 shards(#ring{shards=Shards}) ->
    Shards.
+
+shards(Fun, #ring{shards=Shards})
+ when is_function(Fun) ->
+   [X || {X, N} <- Shards, Fun(N)];
 
 shards(Node, #ring{shards=Shards}) ->
    [X || {X, N} <- Shards, N =:= Node].
@@ -201,13 +202,14 @@ leave(Node, #ring{type=single}=R) ->
 %%%------------------------------------------------------------------   
 
 %%
-chord_join(_Addr, Node, #ring{node=0, shards=Shards}=R) ->
+chord_join(Addr, Node, #ring{node=0, master=Master, shards=Shards}=R) ->
    R#ring{
       node   = 1,
+      master = [{Addr, Node} | Master],
       shards = [{X, Node} || {X, _} <- Shards] 
    };
 
-chord_join(Addr, Node, #ring{node=S, shards=Shards}=R) ->
+chord_join(Addr, Node, #ring{node=S, master=Master, shards=Shards}=R) ->
    % new node claim interval from current owner 
    {A, Owner} = whereis(Addr, R),              % start of interval is first shard owner by new node
    {B,     _} = whereis(address(Owner, R), R), % stop of  interval is first shard owner by existed node 
@@ -218,24 +220,33 @@ chord_join(Addr, Node, #ring{node=S, shards=Shards}=R) ->
       true    ->
          R#ring{
             node   = S + 1,
+            master = lists:keystore(Node, 2, Master, {Addr, Node}),
             shards = chord_claim(A, B, Node, Owner, Shards)
          }
    end.
 
 %%
-chord_leave(Node, #ring{type=chord, node=N, shards=Shards}=R) ->
-   Owner = hd(predecessors(Node, R)),
-   L = lists:map(
-      fun
-         ({X, Y}) when Y =:= Node -> {X, Owner};
-         (X) -> X
-      end,
-      Shards
-   ),
-   R#ring{
-      node   = N - 1,
-      shards = L
-   }.
+chord_leave(Node, #ring{type=chord, node=N, master=Master, shards=Shards}=R) ->
+   {Addr, _} = lists:keyfind(Node, 2, Master),
+   case hd(predecessors(Addr, R)) of
+      % predecessor is same => last node leaves ring
+      Node  ->
+         reset(R);
+      % got an owner 
+      Owner ->    
+         L = lists:map(
+            fun
+               ({X, Y}) when Y =:= Node -> {X, Owner};
+               (X) -> X
+            end,
+            Shards
+         ),
+         R#ring{
+            node   = N - 1,
+            master = lists:keydelete(Node, 2, Master),
+            shards = L
+         }
+   end.
 
 %% claim ring internal
 chord_claim(A, B, New, Old, Shards) ->
@@ -257,13 +268,14 @@ chord_claim(A, B, New, Old, Shards) ->
 %%%------------------------------------------------------------------   
 
 %%
-token_join(_Addr, Node, #ring{node=0, shards=Shards}=R) ->
+token_join(Addr, Node, #ring{node=0, master=Master, shards=Shards}=R) ->
    R#ring{
       node   = 1,
+      master = [{Addr, Node} | Master],
       shards = [{X, Node} || {X, _} <- Shards] 
    };
 
-token_join(_, Node, #ring{node=S, shard=Q, shards=Shards}=R) ->
+token_join(Addr, Node, #ring{node=S, shard=Q, master=Master, shards=Shards}=R) ->
    %T = tokens([Node | members(R)], R), %% give priority of shard to new node
    %% keep priority of shard to old node
    T = tokens(Q, members(R) ++ [Node], R), 
@@ -278,28 +290,34 @@ token_join(_, Node, #ring{node=S, shard=Q, shards=Shards}=R) ->
    ),
    R#ring{
       node   = S + 1,
+      master = lists:keystore(Node, 2, Master, {Addr, Node}),
       shards = L
    }.
 
  
-token_leave(Node, #ring{node=S, shard=Q, shards=Shards}=R) ->
+token_leave(Node, #ring{node=S, shard=Q, master=Master, shards=Shards}=R) ->
    NShards = lists:filter(fun({_, N}) -> N =/= Node end, Shards),
-   T = tokens(2 * Q, lists:usort([X || {_, X} <- NShards]), R),
-   L = lists:map(
-      fun
-      ({X, N}) when N =:= Node ->
-         case lists:keyfind(X, 1, T) of
-            false   -> throw(unknown_node);
-            {_, NN} -> {X, NN}
-         end;
-      ({_, _}=X) -> X
-      end,
-      Shards
-   ),
-   R#ring{
-      node   = S - 1,
-      shards = L
-   }.
+   case tokens(2 * Q, lists:usort([X || {_, X} <- NShards]), R) of
+      [] ->
+         reset(R);
+      T  ->
+         L = lists:map(
+            fun
+            ({X, N}) when N =:= Node ->
+               case lists:keyfind(X, 1, T) of
+                  false   -> throw(unknown_node);
+                  {_, NN} -> {X, NN}
+               end;
+            ({_, _}=X) -> X
+            end,
+            Shards
+         ),
+         R#ring{
+            node   = S - 1,
+            master = lists:keydelete(Node, 2, Master),
+            shards = L
+         }
+   end.
  
 
 %%
@@ -327,11 +345,12 @@ tokens(N, Nodes, Ring) ->
 %%%------------------------------------------------------------------   
 
 %%
-single_join(Addr, Node, #ring{node=S, shards=Shards}=R) ->
+single_join(Addr, Node, #ring{node=S, master=Master, shards=Shards}=R) ->
    case whereis(Addr, R) of
       {A, undefined} ->
          R#ring{
             node   = S + 1,
+            master = lists:keystore(Node, 2, Master, {Addr, Node}),
             shards = lists:usort(lists:keystore(A, 1, Shards, {A, Node}))
          };
       _ ->
@@ -339,13 +358,14 @@ single_join(Addr, Node, #ring{node=S, shards=Shards}=R) ->
    end.
 
 %%
-single_leave(Node, #ring{node=S, shards=Shards}=R) ->
+single_leave(Node, #ring{node=S, master=Master, shards=Shards}=R) ->
    case lists:keytake(Node, 2, Shards) of
       false  ->
          R;
       {value, {A, _}, List} ->
          R#ring{
             node   = S - 1,
+            master = lists:keydelete(Node, 2, Master),
             shards = lists:usort([{A, undefined} | List])
          }
    end.
@@ -357,6 +377,16 @@ single_leave(Node, #ring{node=S, shards=Shards}=R) ->
 %%%
 %%%------------------------------------------------------------------   
 
+%%
+%% reset ring
+reset(#ring{m=M, shard=Q}=R) ->
+   Top = trunc(math:pow(2,M)),
+   Inc = Top div Q,
+   R#ring{
+      node   = 0,
+      master = [], 
+      shards = [{X, undefined} || X <- lists:seq(Inc, Top, Inc)]
+   }.
 
 %%
 %%
