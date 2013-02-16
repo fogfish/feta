@@ -409,10 +409,7 @@ hash(N, X) ->
 unique(List) ->
    lists:reverse(
       lists:foldl(
-         fun
-         ({_, undefined}, Acc) ->
-            Acc;
-         ({_, X}, Acc) ->
+         fun({_, X}, Acc) ->
             case lists:member(X, Acc) of
                true  -> Acc;
                false -> [X | Acc]
