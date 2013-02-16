@@ -67,6 +67,11 @@ init([], R) ->
 %% address(Key, Ring) -> Addr
 %%
 %% maps key into address on the ring
+address(X, #ring{m=M})
+ when is_integer(X) ->
+   Top = trunc(math:pow(2,M)),
+   X rem Top;
+
 address({hash, X}, #ring{m=M}) ->
    <<Addr:M, _/bits>> = X,
    Addr;
@@ -318,7 +323,7 @@ token_leave(Node, #ring{node=S, shard=Q, master=Master, shards=Shards}=R) ->
             shards = L
          }
    end.
- 
+ d
 
 %%
 %% return list of N tokens for each node (ordered by token weight)
