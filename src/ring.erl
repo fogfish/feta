@@ -222,8 +222,8 @@ chord_join(Addr, Node, #ring{node=0, master=Master, shards=Shards}=R) ->
 
 chord_join(Addr, Node, #ring{node=S, master=Master, shards=Shards}=R) ->
    % new node claim interval from current owner 
-   {A, Owner} = whereis(Addr, R),              % start of interval is first shard owner by new node
-   {B,     _} = whereis(address(Owner, R), R), % stop of  interval is first shard owner by existed node 
+   {A, Owner} = whereis(Addr, R),                % start of interval is first shard owner by new node
+   {B,     _} = lists:keyfind(Owner, 2, Master), % stop of  interval is first shard owner by existed node 
    % check against collisions
    if
       A =:= B -> 
