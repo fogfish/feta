@@ -49,6 +49,14 @@ check(Key, Default, App)
          application:get_all_env(App)
    end.
 
+check([Key|T], Opts)
+ when is_list(Opts) ->
+   check(T, check(Key, Opts));
+
+check([], Opts)
+ when is_list(Opts) ->
+   Opts;
+
 check({Key, Default}, Opts)
  when is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
@@ -56,13 +64,13 @@ check({Key, Default}, Opts)
       _     -> Opts
    end;
 
-check([Key|T], Opts)
+check(Key, Opts)
  when is_list(Opts) ->
-   check(T, check(Key, Opts));
+   case lists:keyfind(Key, 1, Opts) of
+      false -> throw({badarg, Key});
+      _     -> Opts
+   end.
 
-check([], Opts)
- when is_list(Opts) ->
-   Opts.
 
 %%
 %% perform white list filtering of supplied konduit options
