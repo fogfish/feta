@@ -67,10 +67,9 @@ init([], R) ->
 %% address(Key, Ring) -> Addr
 %%
 %% maps key into address on the ring
-address(X, #ring{m=M})
+address(X, #ring{})
  when is_integer(X) ->
-   Top = trunc(math:pow(2,M)),
-   X rem Top;
+   X;
 
 address({hash, X}, #ring{m=M}) ->
    <<Addr:M, _/bits>> = X,
