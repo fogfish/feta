@@ -536,6 +536,8 @@ tokenize(Uri0) ->
 
 %%
 %%
+p_schema(<<$/, _/binary>>=Uri) ->
+   {undefined, Uri};
 p_schema(Uri0) ->
    case prefix(Uri0, <<$:>>) of
       {<<>>, Uri} -> 
