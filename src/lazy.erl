@@ -86,14 +86,18 @@ filter(Pred, {Head, Tail}) ->
          new(Head, fun() -> filter(Pred, Tail()) end);
       false ->
          filter(Pred, Tail())
-   end.
+   end;
+filter(_, {}) ->
+   {}.
 
 %%
 %% returns a new stream with mapped values.
 -spec(map/2 :: (function(), lazy()) -> lazy()).
 
 map(Fun, {Head, Tail}) ->
-   new(Fun(Head), fun() -> map(Fun, Tail()) end).
+   new(Fun(Head), fun() -> map(Fun, Tail()) end);
+map(_, {}) ->
+   {}.
 
 
 %%
@@ -119,7 +123,9 @@ acc(_Pred, Acc, {}) ->
 
 fold(Fun, Acc0, {Head, Tail}) ->
    Acc = Fun(Head, Acc0),
-   new(Acc, fun() -> fold(Fun, Acc, Tail()) end).
+   new(Acc, fun() -> fold(Fun, Acc, Tail()) end);
+fold(_, _, {}) ->
+   {}.
 
 %%
 %% mapfold function over stream
@@ -127,7 +133,9 @@ fold(Fun, Acc0, {Head, Tail}) ->
 
 mapfold(Fun, Acc0, {Head, Tail}) ->
    {Val, Acc} = Fun(Head, Acc0),
-   new(Val, fun() -> mapfold(Fun, Acc, Tail()) end).
+   new(Val, fun() -> mapfold(Fun, Acc, Tail()) end);
+mapfold(_, _, {}) ->
+   {}.
 
 
 %%
@@ -135,7 +143,11 @@ mapfold(Fun, Acc0, {Head, Tail}) ->
 -spec(zip/3 :: (function(), lazy(), lazy()) -> lazy()).
 
 zip(Fun, {HeadA, TailA}, {HeadB, TailB}) ->
-   new(Fun(HeadA, HeadB), fun() -> zip(Fun, TailA(), TailB()) end).
+   new(Fun(HeadA, HeadB), fun() -> zip(Fun, TailA(), TailB()) end);
+zip(_, {}, _) ->
+   {};
+zip(_, _, {}) ->
+   {}.
 
 
 %%
