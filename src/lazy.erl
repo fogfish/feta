@@ -105,16 +105,16 @@ map(_, {}) ->
 -spec(reduce/2 :: (function(), lazy()) -> lazy()).
 
 reduce(Pred, S) ->
-  reduce(Pred, [], S).
+  reduce(Pred, 0, [], S).
 
-reduce(Pred, Acc, {Head, Tail}) ->
-   case Pred(Head, Acc) of
+reduce(Pred, N, Acc, {Head, Tail}) ->
+   case Pred(N + 1, [Head | Acc]) of
       false ->
-         new(lists:reverse(Acc), fun() -> reduce(Pred, [Head], Tail()) end);
+         new(lists:reverse(Acc), fun() -> reduce(Pred, 1, [Head], Tail()) end);
       true  ->
-         reduce(Pred, [Head | Acc], Tail())
+         reduce(Pred, N + 1, [Head | Acc], Tail())
    end;
-reduce(_Pred, Acc, {}) ->
+reduce(_Pred, _, Acc, {}) ->
    new(lists:reverse(Acc), fun() -> new() end).
 
 %%
@@ -139,7 +139,7 @@ mapfold(Fun, Acc0, {Head, Tail}) ->
       Acc        -> mapfold(Fun, Acc, Tail())
    end;
 
-mapfold(_, Acc, {}) ->
+mapfold(_, _, {}) ->
    {}.
 
 
@@ -238,7 +238,7 @@ lazy_map_test() ->
 
 lazy_reduce_test() ->
    S = lazy:reduce(
-      fun(X, _) -> X rem 2 =:= 1 end,
+      fun(_, [X|_]) -> X rem 2 =:= 1 end,
       lazy:advance(1, fun(X) when X < 5 -> X + 1; (_) -> eof end)
    ),
 
