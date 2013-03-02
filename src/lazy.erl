@@ -19,7 +19,8 @@
 
 -export([
    new/2, advance/2, hd/1, tl/1, nth/2,
-   filter/2, map/2, fold/2, fold/3, zip/3
+   filter/2, map/2, fold/2, fold/3, zip/3,
+   build/1, list/2
 ]).
 -compile({inline,[new/2]}).
 
@@ -111,11 +112,33 @@ fold(Fun, Acc0, {Head, Tail}) ->
    new(Acc, fun() -> fold(Fun, Acc, Tail()) end).
 
 %%
-%%
+%% zips two streams
 -spec(zip/3 :: (function(), lazy(), lazy()) -> lazy()).
 
 zip(Fun, {HeadA, TailA}, {HeadB, TailB}) ->
    new(Fun(HeadA, HeadB), fun() -> zip(Fun, TailA(), TailB()) end).
+
+
+%%
+%% build lazy stream from erlang data types
+-spec(build/1 :: (any()) -> lazy()).
+
+build([]) ->
+   new(undefined, fun() -> build([]) end);
+build([H|T]) ->
+   new(H, fun() -> build(T) end).
+
+%%
+%%
+list(N, S) ->
+   lists:reverse(
+      lazy:hd(
+         lazy:nth(N,
+            lazy:fold(fun(X, Acc) -> [X | Acc] end, [], S)
+         )
+      )
+   ).
+
 
 %%%------------------------------------------------------------------
 %%%
