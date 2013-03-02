@@ -19,7 +19,7 @@
 
 -export([
    new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
-   filter/2, map/2, fold/2, fold/3, mapfold/3, zip/3,
+   filter/2, map/2, reduce/2, fold/3, mapfold/3, zip/3,
    build/1, list/2
 ]).
 
@@ -102,19 +102,19 @@ map(_, {}) ->
 
 %%
 %% fold / reduce stream elements based on predicated function
--spec(fold/2 :: (function(), lazy()) -> lazy()).
+-spec(reduce/2 :: (function(), lazy()) -> lazy()).
 
-fold(Pred, S) ->
-  acc(Pred, [], S).
+reduce(Pred, S) ->
+  reduce(Pred, [], S).
 
-acc(Pred, Acc, {Head, Tail}) ->
+reduce(Pred, Acc, {Head, Tail}) ->
    case Pred(Head, Acc) of
       false ->
-         new(lists:reverse([Head | Acc]), fun() -> fold(Pred, Tail()) end);
+         new(lists:reverse(Acc), fun() -> reduce(Pred, [Head], Tail()) end);
       true  ->
-         acc(Pred, [Head | Acc], Tail())
+         reduce(Pred, [Head | Acc], Tail())
    end;
-acc(_Pred, Acc, {}) ->
+reduce(_Pred, Acc, {}) ->
    new(lists:reverse(Acc), fun() -> new() end).
 
 %%
@@ -132,9 +132,14 @@ fold(_, _, {}) ->
 -spec(mapfold/3 :: (function(), any(), lazy()) -> lazy()).
 
 mapfold(Fun, Acc0, {Head, Tail}) ->
-   {Val, Acc} = Fun(Head, Acc0),
-   new(Val, fun() -> mapfold(Fun, Acc, Tail()) end);
-mapfold(_, _, {}) ->
+   case Fun(Head, Acc0) of
+      % stream reduction is completed
+      {Val, Acc} -> new(Val, fun() -> mapfold(Fun, Acc, Tail()) end);
+      % stream reduction continues
+      Acc        -> mapfold(Fun, Acc, Tail())
+   end;
+
+mapfold(_, Acc, {}) ->
    {}.
 
 
@@ -231,23 +236,23 @@ lazy_map_test() ->
    {'EXIT', _} = (catch lazy:hd(lazy:nth(3, S))).
 
 
-lazy_fold_test() ->
-   S = lazy:fold(
+lazy_reduce_test() ->
+   S = lazy:reduce(
       fun(X, _) -> X rem 2 =:= 1 end,
       lazy:advance(1, fun(X) when X < 5 -> X + 1; (_) -> eof end)
    ),
 
-   [1, 2] = lazy:hd(S),
-   [3, 4] = lazy:hd(lazy:tl(S)),
-   [5]    = lazy:hd(lazy:tl(lazy:tl(S))),
+   [1]    = lazy:hd(S),
+   [2, 3] = lazy:hd(lazy:tl(S)),
+   [4, 5] = lazy:hd(lazy:tl(lazy:tl(S))),
    {'EXIT', _} = (catch lazy:hd(lazy:tl(lazy:tl(lazy:tl(S))))),
 
-   [1, 2] = lazy:hd(lazy:nth(1, S)),
-   [3, 4] = lazy:hd(lazy:nth(2, S)),
-   [5]    = lazy:hd(lazy:nth(3, S)),
+   [1]    = lazy:hd(lazy:nth(1, S)),
+   [2, 3] = lazy:hd(lazy:nth(2, S)),
+   [4, 5] = lazy:hd(lazy:nth(3, S)),
    {'EXIT', _} = (catch lazy:hd(lazy:nth(4, S))).
 
-lazy_fold_acc_test() ->
+lazy_fold_test() ->
    S = lazy:fold(
       fun(X, Acc) -> Acc + X end,
       10,
@@ -262,7 +267,7 @@ lazy_fold_acc_test() ->
    13  = lazy:hd(lazy:nth(2, S)),
    {'EXIT', _} = (catch lazy:hd(lazy:nth(3, S))).
 
-lazy_mapfold_test() ->
+lazy_mapfold_1_test() ->
    S = lazy:mapfold(
       fun(X, Acc) -> {Acc + X, Acc} end,
       10,
@@ -276,6 +281,30 @@ lazy_mapfold_test() ->
    11  = lazy:hd(lazy:nth(1, S)),
    12  = lazy:hd(lazy:nth(2, S)),
    {'EXIT', _} = (catch lazy:hd(lazy:nth(3, S))).
+
+lazy_mapfold_2_test() ->
+   S = lazy:mapfold(
+      fun(X, Acc) -> 
+         case X rem 2 of
+            1 -> {lists:sum([X | Acc]), []};
+            _ -> [X | Acc]
+         end
+      end,
+      [],
+      lazy:advance(1, fun(X) when X < 5 -> X + 1; (_) -> eof end)
+   ),
+
+   1 = lazy:hd(S),  % [1]
+   5 = lazy:hd(lazy:tl(S)), %[2, 3]
+   9 = lazy:hd(lazy:tl(lazy:tl(S))), %[4, 5]
+   {'EXIT', _} = (catch lazy:hd(lazy:tl(lazy:tl(lazy:tl(S))))),
+
+   1 = lazy:hd(lazy:nth(1, S)),
+   5 = lazy:hd(lazy:nth(2, S)),
+   9 = lazy:hd(lazy:nth(3, S)),
+   {'EXIT', _} = (catch lazy:hd(lazy:nth(4, S))).
+
+
 
 lazy_zip_test() ->
    S = lazy:zip(
