@@ -124,8 +124,9 @@ reduce(_Pred, _, Acc, {}) ->
 fold(Fun, Acc0, {Head, Tail}) ->
    Acc = Fun(Head, Acc0),
    new(Acc, fun() -> fold(Fun, Acc, Tail()) end);
-fold(_, _, {}) ->
-   {}.
+fold(Fun, Acc0, {}) ->
+   Acc = Fun(eof, Acc0),
+   new(Acc, fun() -> new() end).
 
 %%
 %% mapfold function over stream
@@ -139,8 +140,11 @@ mapfold(Fun, Acc0, {Head, Tail}) ->
       Acc        -> mapfold(Fun, Acc, Tail())
    end;
 
-mapfold(_, _, {}) ->
-   {}.
+mapfold(Fun, Acc0, {}) ->
+   case Fun(eof, Acc0) of
+      {Val, _}   -> new(Val, fun() -> new() end);
+      _          -> new()
+   end.
 
 
 %%
@@ -171,7 +175,7 @@ list(N, S) ->
       lazy:hd(
          lazy:nth(
             N,
-            lazy:fold(fun(X, Acc) -> [X | Acc] end, [], S)
+            lazy:fold(fun(X, Acc) when X =/= eof -> [X | Acc] end, [], S)
          )
       )
    ).
