@@ -20,7 +20,7 @@
 -export([
    new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
    filter/2, map/2, reduce/2, fold/3, mapfold/3, zip/3,
-   build/1, list/2
+   build/1, list/2, list/1
 ]).
 
 %%
@@ -171,13 +171,25 @@ build([H|T]) ->
 %%
 %%
 list(N, S) ->
-   lists:reverse(
-      lazy:hd(
-         lazy:nth(
-            N,
-            lazy:fold(fun(X, Acc) when X =/= eof -> [X | Acc] end, [], S)
-         )
-      )
+   lazy:hd(
+      lazy:reduce(fun(L, _) -> L =< N end, S)
+   ).
+
+
+   % lists:reverse(
+   %    lazy:hd(
+   %       lazy:nth(
+   %          N,
+   %          lazy:fold(fun(X, Acc) when X =/= eof -> [X | Acc] end, [], S)
+   %       )
+   %    )
+   % ).
+
+%%
+%%
+list(S) ->
+   lazy:hd(
+      lazy:reduce(fun(_, _) -> true end, S)
    ).
 
 
@@ -337,7 +349,10 @@ lazy_build_test() ->
 
    [1]    = lazy:list(1, S),
    [1, 2] = lazy:list(2, S),
-   {'EXIT', _} = (catch lazy:list(3, S)).
+   [1, 2] = (catch lazy:list(3, S)).
+
+lazy_list_test() ->
+   [1, 2, 3, 4] = lazy:list(lazy:build([1, 2, 3, 4])).
 
 %%
 %%
