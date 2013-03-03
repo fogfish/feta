@@ -19,7 +19,7 @@
 
 -export([
    new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
-   filter/2, map/2, reduce/2, fold/3, mapfold/3, zip/3,
+   filter/2, map/2, reduce/2, fold/2, fold/3, mapfold/3, zip/3,
    build/1, list/2, list/1
 ]).
 
@@ -119,14 +119,17 @@ reduce(_Pred, _, Acc, {}) ->
 
 %%
 %% fold function over stream
+-spec(fold/2 :: (function(), lazy()) -> lazy()).
 -spec(fold/3 :: (function(), any(), lazy()) -> lazy()).
+
+fold(Fun, {Head, Tail}) ->
+   fold(Fun, Head, Tail).
 
 fold(Fun, Acc0, {Head, Tail}) ->
    Acc = Fun(Head, Acc0),
    new(Acc, fun() -> fold(Fun, Acc, Tail()) end);
-fold(Fun, Acc0, {}) ->
-   Acc = Fun(eof, Acc0),
-   new(Acc, fun() -> new() end).
+fold(_Fun, _Acc0, {}) ->
+   {}.
 
 %%
 %% mapfold function over stream
@@ -272,7 +275,7 @@ lazy_fold_test() ->
    S = lazy:fold(
       fun(X, Acc) -> Acc + X end,
       10,
-      lazy:advance(1, fun(X) when X < 2 -> X + 1; (_) -> eof end)
+      lazy:advance(1, fun(X) when X < 2 -> X + 1 end)
    ),
 
    11  = lazy:hd(S),
