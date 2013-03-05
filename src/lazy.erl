@@ -19,7 +19,7 @@
 
 -export([
    new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
-   filter/2, map/2, reduce/2, fold/2, fold/3, mapfold/3, zip/3,
+   filter/2, map/2, reduce/2, fold/2, fold/3, mapfold/3, zip/3, zip/2,
    build/1, list/2, list/1
 ]).
 
@@ -154,12 +154,32 @@ mapfold(Fun, Acc0, {}) ->
 %% zips two streams
 -spec(zip/3 :: (function(), lazy(), lazy()) -> lazy()).
 
-zip(Fun, {HeadA, TailA}, {HeadB, TailB}) ->
-   new(Fun(HeadA, HeadB), fun() -> zip(Fun, TailA(), TailB()) end);
-zip(_, {}, _) ->
-   {};
-zip(_, _, {}) ->
+zip(Fun, {HeadA, TailA}=A, {HeadB, TailB}=B) ->
+   case Fun(HeadA, HeadB) of
+      % only A is taken
+      'A' -> new(HeadA, fun() -> zip(Fun, TailA(), B) end);
+      % only B is taken
+      'B' -> new(HeadB, fun() -> zip(Fun, A, TailB()) end);
+      % A and B is taken
+      Val -> new(Val,   fun() -> zip(Fun, TailA(), TailB()) end)
+   end;
+zip(Fun, {}, {HeadB, TailB}) ->
+   new(HeadB, fun() -> zip(Fun, {}, TailB()) end);
+zip(Fun, {HeadA, TailA}, {}) ->
+   new(HeadA, fun() -> zip(Fun, TailA(), {}) end);
+zip(_, {}, {}) ->
    {}.
+
+%%
+%% zip multiple streams
+-spec(zip/2 :: (function(), [lazy()]) -> lazy()).
+
+zip(Fun, List) ->
+   case [lazy:hd(X) || X <- List, X =/= {}] of
+      []   -> {};
+      Head -> new(Head, fun() -> zip(Fun, [lazy:tl(X) || X <- List, X =/= {}]) end)
+   end.
+
 
 
 %%
