@@ -36,7 +36,7 @@
 %%
 -module(csv).
 -author('Dmitry Kolesnikov <dmkolesnikov@gmail.com>').
--export([parse/3, split/4, pparse/4]).
+-export([parse/3, split/4, pparse/4, stream/1]).
 -export([infile/3]).
 
 %%
@@ -242,4 +242,48 @@ chunk(In, Len) when Len > 0 ->
    end;
 chunk(In, _) ->
    {<<>>, In}.                  
+
+
+%%
+%% lazy evaluation of csv stream
+stream(Series) ->
+   lazy:unfold(
+      fun(In, {Line, Acc}) -> 
+         sparse(<<Acc/binary, In/binary>>, 0, 0, Line, []) 
+      end,
+      {[], <<>>},
+      Series
+   ).
+
+%%
+%% parse(In, Nbr, Pos, Len, Line, FUn, Acc0) ->
+%%   Nbr = current line number
+%%   Pos = token position at input chunk, 
+%%   Len = token length
+%%   Line = accumulator of parsed tokens
+%%   Fun = event handler
+%%   Acc0 = accumulator (state of event handler) 
+sparse(In, Pos, Len, Line, Acc0)
+ when Pos + Len < size(In) ->
+   case In of
+      % end of field
+      <<_:Pos/binary, Tkn:Len/binary, ?FIELD_BY,  _/binary>> ->
+         sparse(In, Pos + Len + 1, 0, acc(Tkn, Line), Acc0);
+      % end of line (accumulate it)
+      <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY, _/binary>>  ->
+         sparse(In, Pos + Len + 1, 0, [], [acc(Tkn, Line) | Acc0]);
+      _ ->
+         % no match increase token
+         sparse(In, Pos, Len + 1, Line, Acc0)
+   end;
+
+sparse(In, Pos, Len, Line, Acc0) ->
+   <<_:Pos/binary, Tkn:Len/binary, Tail/binary>> = In,
+   {lists:reverse(Acc0), {acc(Tkn, Line), Tail}}.
+
+%%
+acc(<<>>, Line) ->
+   Line;
+acc(Tkn, Line) ->
+   [Tkn | Line].
 
