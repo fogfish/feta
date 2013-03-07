@@ -46,6 +46,12 @@
 -define(LINE_BY,   $\n).
 -define(IO_CHUNK,  1024*1024).
 
+-record(csv, {
+   data  = <<>>  :: binary(),  %% partially parsed data
+   line  = []    :: list(),    %% partially parsed line
+   file  = []    :: list()     %% parsed line's accumulator
+}). 
+
 %%
 %% parse(In, Fun, Acc0) -> Acc
 %%   In  = binary(), input csv data to parse
@@ -248,42 +254,32 @@ chunk(In, _) ->
 %% lazy evaluation of csv stream
 stream(Series) ->
    lazy:unfold(
-      fun(In, {Line, Acc}) -> 
-         sparse(<<Acc/binary, In/binary>>, 0, 0, Line, []) 
+      fun(In, #csv{data=Pfx}=S) -> 
+         sparse(<<Pfx/binary, In/binary>>, 0, 0, S#csv{data = <<>>}) 
       end,
-      {[], <<>>},
+      #csv{},
       Series
    ).
 
-%%
-%% parse(In, Nbr, Pos, Len, Line, FUn, Acc0) ->
-%%   Nbr = current line number
-%%   Pos = token position at input chunk, 
-%%   Len = token length
-%%   Line = accumulator of parsed tokens
-%%   Fun = event handler
-%%   Acc0 = accumulator (state of event handler) 
-sparse(In, Pos, Len, Line, Acc0)
+sparse(In, Pos, Len, #csv{line=Line, file=File}=S)
  when Pos + Len < size(In) ->
    case In of
       % end of field
       <<_:Pos/binary, Tkn:Len/binary, ?FIELD_BY,  _/binary>> ->
-         sparse(In, Pos + Len + 1, 0, acc(Tkn, Line), Acc0);
-      % end of line (accumulate it)
+         sparse(In, Pos + Len + 1, 0, S#csv{line=[Tkn | Line]});
+      % end of line
       <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY, _/binary>>  ->
-         sparse(In, Pos + Len + 1, 0, [], [acc(Tkn, Line) | Acc0]);
+         sparse(In, Pos + Len + 1, 0, S#csv{line=[], file=[[Tkn | Line]|File]});
       _ ->
          % no match increase token
-         sparse(In, Pos, Len + 1, Line, Acc0)
+         sparse(In, Pos, Len + 1, S)
    end;
 
-sparse(In, Pos, Len, Line, Acc0) ->
-   <<_:Pos/binary, Tkn:Len/binary, Tail/binary>> = In,
-   {lists:reverse(Acc0), {acc(Tkn, Line), Tail}}.
+sparse(In, Pos, _Len, #csv{file=File}=S) ->
+   <<_:Pos/binary, Sfx/binary>> = In,
+   {lists:reverse(File), S#csv{data=Sfx, file=[]}}.
 
-%%
-acc(<<>>, Line) ->
-   Line;
-acc(Tkn, Line) ->
-   [Tkn | Line].
+
+   
+   
 
