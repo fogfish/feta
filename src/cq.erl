@@ -11,8 +11,7 @@
 -record(cq, {      
    epoch,    % start of interval (usec)
    chronon,  % length of interval 
-   deadline, % next query deadline
-   chunk,    %
+   chunk,    % interim result
    cqf
 }).
 
@@ -26,7 +25,6 @@ new(Chronon, Fun) ->
    S = #cq{
       epoch    = usec(),
       chronon  = Chronon,
-      deadline = usec(),
       chunk    = [],
       cqf      = Fun
    },
@@ -39,7 +37,6 @@ new(Epoch, Chronon, Fun)
    S = #cq{
       epoch    = Epoch,
       chronon  = Chronon,
-      deadline = Epoch,
       chunk    = [],
       cqf      = Fun
    },
@@ -56,7 +53,8 @@ new(Epoch, Chronon, Fun)
 
 %%
 %%
-handle(#cq{chunk=[], deadline=Deadline}=S) ->
+handle(#cq{chunk=[], epoch=Epoch, chronon=Chronon}=S) ->
+   Deadline = Epoch + Chronon,
    case usec() of
       X when X > Deadline ->
          eval(S);
@@ -70,14 +68,14 @@ handle(#cq{chunk=[Head | Tail]}=S) ->
 
 %%
 %%
-eval(#cq{cqf=Fun, epoch=Epoch, chronon=Chronon, deadline=Deadline}=S) ->
-   case Fun(Epoch, Deadline) of
+eval(#cq{cqf=Fun, epoch=Epoch, chronon=Chronon}=S) ->
+   case Fun(Epoch, Epoch + Chronon) of
       % 
       [Head | Tail] ->
-         lazy:new(Head, fun() -> handle(S#cq{epoch=Deadline, chunk=Tail, deadline=Deadline + Chronon}) end);
+         lazy:new(Head, fun() -> handle(S#cq{epoch=Epoch + Chronon, chunk=Tail}) end);
       % no data
       [] ->
-         lazy:new(undefined, fun() -> handle(S#cq{epoch=Deadline, deadline=Deadline + Chronon}) end);
+         handle(S#cq{epoch=Epoch + Chronon});
       % end of stream
       undefined     ->
          lazy:new()
