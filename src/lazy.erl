@@ -17,6 +17,13 @@
 %%   lazy stream evaluation http://www.serenethinking.com/2011/10/lazy-evaluation-and-lazy-in-erlang/
 -module(lazy).
 
+-export([
+   new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2, dropwhile/2,
+   filter/2, map/2, fold/2, fold/3, unfold/2, unfold/3,
+   mapfold/2, mapfold/3, zip/3, zip/2, interleave/3,
+   build/1, list/2, list/1
+]).
+
 %%
 %% lazy stream 
 -type head()     :: any().
@@ -26,13 +33,6 @@
 -type foldf()    :: fun((head(),  any()) -> head()).
 -type unfoldf()  :: fun((head(),  any()) -> {head(), any()}).
 -type zipf()     :: fun((head(), head()) -> head()). 
-
--export([
-   new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
-   filter/2, map/2, fold/2, fold/3, unfold/2, unfold/3,
-   mapfold/2, mapfold/3, zip/3, zip/2, interleave/3,
-   build/1, list/2, list/1
-]).
 -export_type([lazy/0]).
 
 -compile({inline,[new/0, new/1, new/2, hd/1, tl/1]}).
@@ -40,16 +40,18 @@
 
 %%
 %% create lazy stream evaluation
+-spec(new/0 :: () -> lazy()).
+-spec(new/1 :: (any()) -> lazy()).
 -spec(new/2 :: (any(), function()) -> lazy()).
 
 new() ->
    {}.
 
 new(Head) ->
-   {Head, fun() -> new() end}.
+   new(Head, fun lazy:new/0).
 
-new(eof, _Fun) ->
-   {};
+new(eof, _) ->
+   new();
 new(Head, Fun) ->
    {Head, Fun}.
 
@@ -75,7 +77,7 @@ tl({_, Fun}) ->
    Fun().
 
 %%
-%% skip stream to nth element
+%% returns the suffix of the lazy stream that starts at the next element after the first n elements.
 -spec(nth/2 :: (integer(), lazy()) -> lazy()).
 
 nth(1, S) ->
@@ -85,9 +87,20 @@ nth(N, {_, Tail})
   nth(N - 1, Tail()).
 
 %%
-%% Filter operation applies higher-order function on stream to produce a new stream containing exactly
-%% those elements of the original stream for which a given predicate returns the boolean value true.
-%% 
+%% returns the suffix of the input stream that starts at the first element x for which predicate is false.
+-spec(dropwhile/2 :: (predf(), lazy()) -> lazy()).
+
+dropwhile(Pred, {Head, Tail}) ->
+   case Pred(Head) of
+      true  -> dropwhile(Pred, Tail()); 
+      false -> {Head, Tail}
+   end;
+dropwhile(_, {}) ->
+   {}.
+
+
+%%
+%% returns a newly-allocated stream that contains only those elements x of the input stream for which predicate is true.
 -spec(filter/2 :: (predf(), lazy()) -> lazy()).
 
 filter(Pred, {Head, Tail}) ->
@@ -101,8 +114,7 @@ filter(_, {}) ->
    {}.
 
 %%
-%%
-%% Map operation applies a function to each element of a stream, returning a stream of results.
+%% returns a newly-allocated stream containing elements that are the results of map function
 -spec(map/2 :: (mapf(), lazy()) -> lazy()).
 
 map(Map, {Head, Tail}) ->
@@ -112,10 +124,10 @@ map(_, {}) ->
 
 
 %%
-%% Folds operation applies higher order function on stream to produce a new stream. The operation
-%% reduces / accumulates stream elements. The fold is defined as combining operation of initial value
-%% and stream head, producing a new head. When no initial value is supplied then stream head is used
-%% as initial value
+%% returns a newly allocated stream containing elements that result of fold function. The fold
+%% procedure takes stream head and accumulator, producing a new accumulator that becomes head of
+%% stream (accumulates the partial folds). When no initial value is supplied then stream head
+%% is used as initial value 
 -spec(fold/2 :: (foldf(), lazy()) -> lazy()).
 -spec(fold/3 :: (foldf(), any(), lazy()) -> lazy()).
 
@@ -129,7 +141,7 @@ fold(_Fold, _Acc0, {}) ->
    {}.
 
 %%
-%% Unfold is dual to fold (and special case of map-fold). It take a "seed" value and apply a higher 
+%% Unfold is dual to fold (recursive stream constructor). It take a "seed" value and apply a higher 
 %% order function recursively to decide how to progressively re-construct a stream. The function
 %% returns N newly allocated stream elements 
 -spec(unfold/2 :: (unfoldf(), lazy()) -> lazy()).
@@ -140,8 +152,15 @@ unfold(UnFold, {Head, Tail}) ->
 
 unfold(UnFold, Acc0, {Head, Tail}) ->
    case UnFold(Head, Acc0) of
+      % new seed and stream elements are returned
       {[H|T], Acc} -> new(H, fun() -> unfold1(T, UnFold, Acc, Tail) end);
+      % no values are produced
       {[],    Acc} -> unfold(UnFold, Acc, Tail());
+      % single value is produced
+      {Val,   Acc} -> new(Val, fun() -> unfold(UnFold, Acc, Tail()) end);
+      % end of stream is reached
+      eof          -> {};
+      % no values are produces
       Acc          -> unfold(UnFold, Acc, Tail())
    end;
 unfold(_Fold, _Acc0, {}) ->
@@ -166,6 +185,7 @@ mapfold(MapFold, {Head, Tail}) ->
 mapfold(MapFold, Acc0, {Head, Tail}) ->
    case MapFold(Head, Acc0) of
       {Val, Acc} -> new(Val, fun() -> mapfold(MapFold, Acc, Tail()) end);
+      eof        -> {};
       Acc        -> mapfold(MapFold, Acc, Tail())
    end;
 
