@@ -19,7 +19,11 @@ boot(App, Config) ->
 boot(kernel) -> ok;
 boot(stdlib) -> ok;
 boot(App) when is_atom(App) ->
-   AppFile = code:where_is_file(atom_to_list(App) ++ ".app"),
+   maybe_boot(code:where_is_file(atom_to_list(App) ++ ".app"), App).
+
+maybe_boot(non_existing, App) ->
+   throw({no_app, App});
+maybe_boot(AppFile, App) ->
    {ok, [{application, _, List}]} = file:consult(AppFile), 
    Apps = proplists:get_value(applications, List, []),
    lists:foreach(
