@@ -114,7 +114,7 @@
 -module(gbt).
 
 -export([empty/0, is_empty/1, size/1, lookup/2, get/2, insert/3,
-	 update/3, enter/3, delete/2, delete_any/2, balance/1,
+	 update/3, enter/3, delete/2, delete_any/2, delete/3, balance/1,
 	 is_defined/2, keys/1, values/1, to_list/1, range/2, from_orddict/1,
 	 smallest/1, largest/1, take_smallest/1, take_largest/1,
 	 iterator/1, iterator/2, next/1, map/2, foldl/3, foldr/3]).
@@ -427,6 +427,34 @@ merge(nil, Larger) ->
 merge(Smaller, Larger) ->
     {Key, Value, Larger1} = take_smallest1(Larger),
     {Key, Value, Smaller, Larger1}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec delete(From, To, Tree1) -> Tree2 when
+    From :: term(),
+    To   :: term(),
+    Tree1 :: gb_tree(),
+    Tree2 :: gb_tree().
+
+delete(From, To, {S, T}) when is_integer(S), S >= 0 ->
+    {NN, NT} = delete_1(0, From, To, T),
+    {S - NN, NT}.
+
+delete_1(N, From, To, {Key, Value, Smaller, Larger}) when Key < From ->
+    {NN, Larger1} = delete_1(N, From, To, Larger),
+    {NN, {Key, Value, Smaller, Larger1}};
+
+delete_1(N, From, To, {Key, Value, Smaller, Larger}) when Key > To  ->
+    {NN, Smaller1} = delete_1(N, From, To, Smaller),
+    {NN, {Key, Value, Smaller1, Larger}};
+
+delete_1(N, From, To, {_, _, Smaller, Larger}) ->
+    delete_1(N + 1, From, To, merge(Smaller, Larger));
+
+delete_1(N, _, _, nil) ->
+    {N, nil}.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
