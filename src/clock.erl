@@ -14,6 +14,9 @@ set(T, Msg)
    {clock, T, erlang:send_after(T, self(), Msg)};
 
 set({clock, _T, _Timer}=X, _Msg) ->
+   X;
+
+set(X, _) ->
    X.
 
 %%
@@ -24,7 +27,10 @@ reset(T, Msg)
 
 reset({clock, T, Timer}, Msg) ->
    erlang:cancel_timer(Timer),
-   clock:set(T, Msg).
+   clock:set(T, Msg);
+
+reset(X, _) ->
+   X.
 
 %%
 %%
@@ -34,6 +40,10 @@ cancel(T)
 
 cancel({clock, T, Timer}) ->
    erlang:cancel_timer(Timer),
-   T.
+   T;
+
+cancel(X) ->
+   X.
+
 
 
