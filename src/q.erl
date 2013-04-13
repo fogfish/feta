@@ -114,7 +114,7 @@ dropwhile(Pred, {q, _, _}=Q) ->
    {Head, Tail} = deq(Q),
    case Pred(Head) of
       true  -> dropwhile(Pred, Tail); 
-      false -> Tail
+      false -> Q
    end;
 
 dropwhile(_,  {}) ->
@@ -152,7 +152,7 @@ q_hd_tl_test() ->
 q_dropwhile_test() ->
    Seq = lists:seq(1, 5),
    Q   = q:dropwhile(
-      fun(X) -> X < 2 end,
+      fun(X) -> X =< 2 end,
       lists:foldl(fun q:enq/2, q:new(), Seq)
    ),
    3   = q:hd(Q),
