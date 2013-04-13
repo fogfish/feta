@@ -16,6 +16,7 @@
 %% @description
 %%   lazy stream evaluation http://www.serenethinking.com/2011/10/lazy-evaluation-and-lazy-in-erlang/
 -module(lazy).
+-define(TESTS, tests).
 
 -export([
    new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2, dropwhile/2,
@@ -36,7 +37,6 @@
 -export_type([lazy/0]).
 
 -compile({inline,[new/0, new/1, new/2, hd/1, tl/1]}).
--define(TESTS, tests).
 
 %%
 %% create lazy stream evaluation
