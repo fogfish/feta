@@ -239,11 +239,15 @@ interleave(_, {}, {}) ->
 %% build lazy stream from erlang data types
 -spec(build/1 :: (any()) -> lazy()).
 
+%%
+%% build lazy stream from list
 build([]) ->
    new();
 build([H|T]) ->
    new(H, fun() -> build(T) end);
 
+%%
+%% build lazy stream from file description
 build(FD)
  when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
    case file:read(FD, 8 * 1024) of

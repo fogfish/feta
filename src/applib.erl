@@ -1,7 +1,7 @@
 -module(applib).
 
 -export([
-   boot/2
+   boot/2, is_application/1
 ]).
 
 %%
@@ -24,18 +24,23 @@ boot(App) when is_atom(App) ->
 maybe_boot(non_existing, App) ->
    throw({no_app, App});
 maybe_boot(AppFile, App) ->
-   {ok, [{application, _, List}]} = file:consult(AppFile), 
-   Apps = proplists:get_value(applications, List, []),
-   lists:foreach(
-      fun(X) -> 
-         ok = case boot(X) of
-            {error, {already_started, X}} -> ok;
-            Ret -> Ret
-         end
-      end,
-      Apps
-   ),
-   application:start(App).
+   case lists:keyfind(App, 1, application:loaded_applications()) of
+      false ->
+         {ok, [{application, _, List}]} = file:consult(AppFile), 
+         Apps = proplists:get_value(applications, List, []),
+         lists:foreach(
+            fun(X) -> 
+               ok = case boot(X) of
+                  {error, {already_started, X}} -> ok;
+                  Ret -> Ret
+               end
+            end,
+            Apps
+         ),
+         application:start(App);
+      _ ->
+         {error, {already_started, App}}
+   end.
 
 %% configure application from file
 setenv({App, Opts})
@@ -51,3 +56,14 @@ setenv([X|_]=File)
 setenv(Opts)
  when is_list(Opts) ->
    setenv({?MODULE, Opts}).
+
+%%
+%% check if application is loaded
+is_application(App)
+ when is_atom(App) ->
+   case lists:keyfind(App, 1, application:which_applications()) of
+      false -> false;
+      _     -> true
+   end.
+
+
