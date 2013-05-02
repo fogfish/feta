@@ -1,7 +1,7 @@
 -module(applib).
 
 -export([
-   boot/2, is_application/1
+   boot/2, is_running/1, is_loaded/1
 ]).
 
 %%
@@ -58,12 +58,20 @@ setenv(Opts)
    setenv({?MODULE, Opts}).
 
 %%
-%% check if application is loaded
-is_application(App)
+%% check if application is running
+is_running(App)
  when is_atom(App) ->
    case lists:keyfind(App, 1, application:which_applications()) of
       false -> false;
       _     -> true
    end.
 
+%%
+%% check if application is loaded
+is_loaded(App)
+ when is_atom(App) ->
+   case lists:keyfind(App, 1, application:loaded_applications()) of
+      false -> false;
+      _     -> true
+   end.
 
