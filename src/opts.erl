@@ -209,5 +209,5 @@ val(Key, Opts) ->
 val(Key, Default, Opts) ->
    case opts:get(Key, Default, Opts) of
       {_, Val} -> Val;
-      _        -> true
+      Result   -> Result
    end.
