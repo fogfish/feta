@@ -254,7 +254,11 @@ build(FD)
       {ok, Chunk} ->
          new(Chunk, fun() -> build(FD) end);
       eof  ->
-         {}
+         file:close(FD),
+         {};
+      {error, Reason} ->
+         file:close(FD),
+         throw(Reason)
    end.
 
 %%
