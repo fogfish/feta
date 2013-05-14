@@ -71,6 +71,9 @@ address(X, #ring{})
  when is_integer(X) ->
    X;
 
+address({addr, X}, #ring{}) ->
+   X;
+
 address({hash, X}, #ring{m=M}) ->
    <<Addr:M, _/bits>> = X,
    Addr;
