@@ -397,7 +397,7 @@ reset(#ring{m=M, shard=Q}=R) ->
    R#ring{
       node   = 0,
       master = [], 
-      shards = [{X, undefined} || X <- lists:seq(Inc, Top, Inc)]
+      shards = [{X, undefined} || X <- lists:seq(Inc - 1, Top - 1, Inc)]
    }.
 
 %%
