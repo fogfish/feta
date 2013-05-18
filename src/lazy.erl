@@ -19,7 +19,8 @@
 -define(TESTS, tests).
 
 -export([
-   new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2, dropwhile/2,
+   new/0, new/1, new/2, advance/2, hd/1, tl/1, nth/2,
+   drop/2, dropwhile/2, take/2, takewhile/2,
    filter/2, map/2, fold/2, fold/3, unfold/2, unfold/3,
    mapfold/2, mapfold/3, zip/3, zip/2, interleave/3,
    build/1, list/2, list/1
@@ -80,11 +81,22 @@ tl({_, Fun}) ->
 %% returns the suffix of the lazy stream that starts at the next element after the first n elements.
 -spec(nth/2 :: (integer(), lazy()) -> lazy()).
 
-nth(1, S) ->
+nth(N, S) ->
+   drop(N - 1, S).
+
+%%
+%% returns the suffix of the lazy stream that starts at the next element after the first n elements.
+-spec(drop/2 :: (integer(), lazy()) -> lazy()).
+
+drop(0, S) ->
    S;
-nth(N, {_, Tail}) 
+
+drop(N, {_, Tail}) 
  when N >= 1 ->
-  nth(N - 1, Tail()).
+  drop(N - 1, Tail());
+
+drop(_, {}) ->
+   {}.
 
 %%
 %% returns the suffix of the input stream that starts at the first element x for which predicate is false.
@@ -97,6 +109,38 @@ dropwhile(Pred, {Head, Tail}) ->
    end;
 dropwhile(_, {}) ->
    {}.
+
+%%
+%%
+-spec(take/2 :: (integer(), lazy()) -> {list(), lazy()}).
+
+take(N, S) ->
+   take(N, [], S).
+
+take(0, Acc,  S) ->
+   {lists:reverse(Acc),  S};
+
+take(N, Acc, {Head, Tail}) 
+ when N >= 1 ->
+  take(N - 1, [Head | Acc], Tail());
+
+take(_, Acc, {}) ->
+   {lists:reverse(Acc), {}}.
+
+%%
+%% returns the suffix of the input stream that starts at the first element x for which predicate is false.
+-spec(takewhile/2 :: (predf(), lazy()) -> lazy()).
+
+takewhile(Pred, S) ->
+   takewhile(Pred, [], S).
+   
+takewhile(Pred, Acc, {Head, Tail}) ->
+   case Pred(Head) of
+      true  -> takewhile(Pred, [Head | Acc], Tail()); 
+      false -> {lists:reverse(Acc), {Head, Tail}}
+   end;
+takewhile(_, Acc, {}) ->
+   {lists:reverse(Acc), {}}.
 
 
 %%
@@ -138,7 +182,7 @@ fold(Fold, Acc0, {Head, Tail}) ->
    Acc = Fold(Head, Acc0),
    new(Acc, fun() -> fold(Fold, Acc, Tail()) end);
 fold(_Fold, _Acc0, {}) ->
-   {}.
+   {}. %% TODO: fix loss Acc0
 
 %%
 %% Unfold is dual to fold (recursive stream constructor). It take a "seed" value and apply a higher 
