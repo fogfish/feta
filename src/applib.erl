@@ -1,7 +1,7 @@
 -module(applib).
 
 -export([
-   boot/2, is_running/1, is_loaded/1
+   boot/2, is_running/1, is_loaded/1, phase/1
 ]).
 
 %%
@@ -24,7 +24,7 @@ boot(App) when is_atom(App) ->
 maybe_boot(non_existing, App) ->
    throw({no_app, App});
 maybe_boot(AppFile, App) ->
-   case lists:keyfind(App, 1, application:loaded_applications()) of
+   case lists:keyfind(App, 1, application:which_applications()) of
       false ->
          {ok, [{application, _, List}]} = file:consult(AppFile), 
          Apps = proplists:get_value(applications, List, []),
@@ -56,6 +56,24 @@ setenv([X|_]=File)
 setenv(Opts)
  when is_list(Opts) ->
    setenv({?MODULE, Opts}).
+
+%%
+%% check application info
+-spec(phase/1 :: (atom()) -> running | loaded | undefined).
+
+phase(App)
+ when is_atom(App) ->
+   maybe_running(is_running(App), App).
+
+maybe_running(true,  _) ->
+   running;
+maybe_running(false, App) ->
+   maybe_loaded(is_loaded(App), App).
+
+maybe_loaded(true,  _) ->
+   loaded;
+maybe_loaded(false, App) ->
+   undefined.
 
 %%
 %% check if application is running
