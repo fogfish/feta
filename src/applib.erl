@@ -55,7 +55,7 @@ setenv([X|_]=File)
    lists:foreach(fun setenv/1, Cfg);
 setenv(Opts)
  when is_list(Opts) ->
-   setenv({?MODULE, Opts}).
+   lists:foreach(fun setenv/1, Opts).
 
 %%
 %% check application info
