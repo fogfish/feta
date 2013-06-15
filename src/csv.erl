@@ -36,8 +36,12 @@
 %%
 -module(csv).
 -author('Dmitry Kolesnikov <dmkolesnikov@gmail.com>').
--export([parse/3, split/4, pparse/4, stream/1]).
--export([infile/3]).
+-export([
+   encode/1, decode/1,
+
+   parse/3, split/4, pparse/4, stream/1,
+   infile/3
+]).
 
 %%
 %%
@@ -51,6 +55,47 @@
    line  = []    :: list(),    %% partially parsed line
    file  = []    :: list()     %% parsed line's accumulator
 }). 
+
+%%
+%%
+encode(Data)
+ when is_list(Data) ->
+   iolist_to_binary([encode_line(X) || X <- Data]).
+
+encode_line(L)
+ when is_tuple(L) ->
+   encode_line(tuple_to_list(L));
+encode_line([]) ->
+   [];
+encode_line([H|T]) ->
+   [encode_value(H), lists:append([[?FIELD_BY, encode_value(X)] || X <- T]), ?LINE_BY].
+
+encode_value(X)
+ when is_binary(X) ->
+   X;
+encode_value(X)
+ when is_list(X) ->
+   iolist_to_binary(X);
+encode_value(X) 
+ when is_atom(X) ->
+   atom_to_binary(X, utf8);
+encode_value(X)
+ when is_integer(X) ->
+   list_to_binary(integer_to_list(X)).
+
+%%
+%%
+decode(CSV) ->
+   lists:reverse(
+      parse(CSV, fun decode_line/2, [])
+   ).
+
+decode_line({line, L}, Acc) ->
+   [list_to_tuple(lists:reverse(L)) | Acc];
+decode_line(_, Acc) ->
+   Acc.
+
+
 
 %%
 %% parse(In, Fun, Acc0) -> Acc

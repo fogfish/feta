@@ -182,7 +182,7 @@ fold(Fold, Acc0, {Head, Tail}) ->
    Acc = Fold(Head, Acc0),
    new(Acc, fun() -> fold(Fold, Acc, Tail()) end);
 fold(_Fold, _Acc0, {}) ->
-   {}. %% TODO: fix loss Acc0
+   {}.
 
 %%
 %% Unfold is dual to fold (recursive stream constructor). It take a "seed" value and apply a higher 
