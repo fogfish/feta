@@ -122,7 +122,7 @@ micro({Msec, Sec, Usec}) ->
 %%
 %% increase time by T seconds
 inc(T) ->
-   inc(erlang:now(), T).
+   inc(erlang:now(), sec(T)).
 
 inc({Msec, Sec, Usec}, T)
  when is_integer(T) ->
@@ -136,7 +136,7 @@ inc({Msec, Sec, Usec}, T)
 %%
 %% increase time by T seconds
 dec(T) ->
-   dec(erlang:now(), T).
+   dec(erlang:now(), sec(T)).
 
 dec({Msec, Sec, Usec}, T)
  when is_integer(T) ->
