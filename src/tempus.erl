@@ -18,26 +18,50 @@
 -module(tempus).
 
 -export([
-   sec/0, milli/0, micro/0
+   sec/0,   sec/1, now/0, 
+   milli/0, milli/1, 
+   micro/0, micro/1,
+
+   shift/1, shift/2 
 ]).
 
 %%
 %% current time in seconds
-sec() ->
-   {Msec, Sec, _Usec} = erlang:now(),
+now() -> 
+   sec().
+
+%%
+%% current time in seconds
+sec() -> 
+   sec(erlang:now()).
+
+sec({Msec, Sec, _Usec}) ->
    Msec * 1000000 + Sec.
 
 %%
 %% current time in milliseconds   
 milli() ->
-   {Msec, Sec, Usec} = erlang:now(),
+   milli(erlang:now()).
+
+milli({Msec, Sec, Usec}) ->
    (Msec * 1000000 + Sec) * 1000 + Usec div 1000.
 
 %%
 %% current time in microseconds
 micro() ->
-   {Msec, Sec, Usec} = erlang:now(),
+   micro(erlang:now()).
+
+micro({Msec, Sec, Usec}) ->
    (Msec * 1000000 + Sec) * 1000000 + Usec.
 
+%%
+%% add seconds
+shift(T) ->
+   shift(erlang:now(), T).
 
+shift({Msec, Sec, Usec}, T)
+ when is_integer(T) ->
+   A = (Sec + T) rem 1000000,
+   B = (Sec + T) div 1000000,
+   {Msec + B, A, Usec}.
 
