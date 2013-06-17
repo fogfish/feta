@@ -67,6 +67,7 @@ decode(X)
 %%
 %% scalar to string
 -spec(s/1 :: (any()) -> list()).
+s(X) when is_binary(X)  -> btos(X);
 s(X) when is_atom(X)    -> atos(X);
 s(X) when is_list(X)    -> ltos(X);
 s(X) when is_integer(X) -> itos(X);
@@ -74,6 +75,7 @@ s(X) when is_float(X)   -> ftos(X).
 
 %%
 %% to string
+btos(X) -> X.
 atos(X) -> atom_to_binary(X, utf8).
 ltos(X) -> list_to_binary(X).
 itos(X) -> ltos(itol(X)).
