@@ -20,10 +20,10 @@
 
 -export([
    new/0, new/1, hd/1, tl/1, enq/2, deq/1,
-   is_empty/1, dropwhile/2
+   is_empty/1, length/1, dropwhile/2
 ]).
 
--type(q() :: {q, list(), list()}).
+-type(q() :: {q, integer(), list(), list()}).
 -export_type([q/0]).
 
 %%
@@ -38,13 +38,13 @@ new([]) ->
     {};
 
 new([_]=Head) ->
-    {q, [], Head};
+    {q, 1, [], Head};
 
 new([X,Y]) ->
-    {q, [X],[Y]};
+    {q, 2, [X],[Y]};
 
-new([X,Y|Head]) ->
-    {q, [X,Y], lists:reverse(Head, [])}.
+new([X,Y|Head]=List) ->
+    {q, lists:length(List), [X,Y], lists:reverse(Head, [])}.
 
 %%
 %%
@@ -71,31 +71,31 @@ tl(Q) ->
 %% enqueue element
 -spec(enq/2 :: (any(), q()) -> q()).
 
-enq(E, {q, [_]=Tail, []}) ->
-   {q, [E], Tail};
+enq(E, {q, N, [_]=Tail, []}) ->
+   {q, N + 1, [E], Tail};
 
-enq(E, {q, Tail, Head}) ->
-   {q, [E|Tail], Head};
+enq(E, {q, N, Tail, Head}) ->
+   {q, N + 1, [E|Tail], Head};
 
 enq(E, {}) ->
-   {q, [E], []}.
+   {q, 1, [E], []}.
 
 %%
 %% dequeue element
 -spec(deq/1 :: (q()) -> {any(), q()}).
 
-deq({q, [E], []}) ->
+deq({q, _, [E], []}) ->
    {E, q:new()};
 
-deq({q, [Last|Tail], []}) ->
+deq({q, N, [Last|Tail], []}) ->
    [E|Head] = lists:reverse(Tail, []),
-   {E, {q, [Last], Head}};
+   {E, {q, N - 1, [Last], Head}};
 
-deq({q, Tail, [E]}) ->
+deq({q, _, Tail, [E]}) ->
    {E, q:new(Tail)};
 
-deq({q, Tail, [E|Head]}) ->
-   {E, {q, Tail, Head}}.
+deq({q, N, Tail, [E|Head]}) ->
+   {E, {q, N - 1, Tail, Head}}.
 
 %%
 %% check if the queue is empty
@@ -107,10 +107,17 @@ is_empty(_) ->
    false.
 
 %%
+%%
+length({q, N, _, _}) ->
+   N;
+length({}) ->
+   0.
+
+%%
 %% dropwhile head of queue
 -spec(dropwhile/2 :: (function(), q()) -> q()).
 
-dropwhile(Pred, {q, _, _}=Q) ->
+dropwhile(Pred, {q, _, _, _}=Q) ->
    {Head, Tail} = deq(Q),
    case Pred(Head) of
       true  -> dropwhile(Pred, Tail); 
