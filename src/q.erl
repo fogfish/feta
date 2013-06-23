@@ -44,7 +44,7 @@ new([X,Y]) ->
     {q, 2, [X],[Y]};
 
 new([X,Y|Head]=List) ->
-    {q, lists:length(List), [X,Y], lists:reverse(Head, [])}.
+    {q, erlang:length(List), [X,Y], lists:reverse(Head, [])}.
 
 %%
 %%
