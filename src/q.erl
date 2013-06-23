@@ -50,10 +50,10 @@ new([X,Y|Head]=List) ->
 %%
 -spec(hd/1 :: (q()) -> any()).
 
-hd({q, _Tail, [Head|_]}) ->
+hd({q, _N, _Tail, [Head|_]}) ->
    Head;
 
-hd({q, [Head | _], []}) ->
+hd({q, _N, [Head | _], []}) ->
    Head;
 
 hd(_) ->
@@ -117,7 +117,7 @@ length({}) ->
 %% dropwhile head of queue
 -spec(dropwhile/2 :: (function(), q()) -> q()).
 
-dropwhile(Pred, {q, _, _, _}=Q) ->
+dropwhile(Pred, {q, _N, _Tail, _Head}=Q) ->
    {Head, Tail} = deq(Q),
    case Pred(Head) of
       true  -> dropwhile(Pred, Tail); 
