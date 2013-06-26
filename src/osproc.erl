@@ -66,6 +66,9 @@ handle_cast(_, S) ->
 
 %%
 %%
+handle_info({_Port, {exit_status, 0}}, S) ->
+   {stop, normal, S};
+
 handle_info({_Port, {exit_status, Reason}}, S) ->
    {stop, {?MODULE, Reason}, S};
 
