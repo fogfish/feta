@@ -19,11 +19,13 @@
 %%         a - atom, b - binary, l - list, i - integer, f - float
 %%      
 %%      extended data type set
-%%         s - string
+%%         s - string (binary)
+%%         c - character list
 -module(scalar).
 
 -export([
-   decode/1, s/1
+   decode/1, 
+   s/1, c/1
 ]).
 
 %%
@@ -66,12 +68,29 @@ decode(X)
 
 %%
 %% scalar to string
--spec(s/1 :: (any()) -> list()).
+-spec(s/1 :: (any()) -> binary()).
+
 s(X) when is_binary(X)  -> btos(X);
 s(X) when is_atom(X)    -> atos(X);
 s(X) when is_list(X)    -> ltos(X);
 s(X) when is_integer(X) -> itos(X);
 s(X) when is_float(X)   -> ftos(X).
+
+%%
+%% character list
+-spec(c/1 :: (any()) -> list()).
+
+c(X) when is_binary(X)  -> btoc(X);
+c(X) when is_atom(X)    -> atoc(X);
+c(X) when is_list(X)    -> ltoc(X);
+c(X) when is_integer(X) -> itoc(X);
+c(X) when is_float(X)   -> ftoc(X).
+
+%%%------------------------------------------------------------------
+%%%
+%%% private
+%%%
+%%%------------------------------------------------------------------   
 
 %%
 %% to string
@@ -82,12 +101,24 @@ itos(X) -> ltos(itol(X)).
 ftos(X) -> ltos(io_lib:format("~.9f", [X])).
 
 %%
+%% to character list
+btoc(X) -> btol(X).
+atoc(X) -> atol(X).
+ltoc(X) -> X.
+itoc(X) -> itol(X).
+ftoc(X) -> lists:flatten(io_lib:format("~.9f", [X])).
+
+
+
+%%
 %% to list
+atol(X) -> atom_to_list(X).
 itol(X) -> integer_to_list(X).
 btol(X) -> binary_to_list(X).
 
 %%
 %% from list
+ltoa(X) -> list_to_atom(X).
 ltoi(X) -> list_to_integer(X).
 ltof(X) -> list_to_float(X).
 
