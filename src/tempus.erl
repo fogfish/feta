@@ -19,10 +19,19 @@
 
 -export([
    % time convert utility
-   now/0, sec/0, sec/1, milli/0, milli/1, micro/0, micro/1,
+   now/0, 
+   sec/0, 
+   sec/1, 
+   milli/0, 
+   milli/1, 
+   micro/0, 
+   micro/1,
 
    % time transform utility
-   inc/1, inc/2, dec/1, dec/2 
+   inc/1, 
+   inc/2, 
+   dec/1, 
+   dec/2 
 ]).
 
 %% number of sec to Unix Epoch
@@ -34,8 +43,6 @@
 %%%
 %%%------------------------------------------------------------------
 
-
-
 %%
 %% current time in seconds
 now() -> 
@@ -44,7 +51,7 @@ now() ->
 %%
 %% current time in seconds
 sec() -> 
-   sec(erlang:now()).
+   sec(os:timestamp()).
 
 %%
 %% convert time to second
@@ -95,12 +102,10 @@ sec(Milli)
    % given time value exceeds max allowed Sec value
    Milli div 1000.
 
-
-
 %%
 %% current time in milliseconds   
 milli() ->
-   milli(erlang:now()).
+   milli(os:timestamp()).
 
 milli({Msec, Sec, Usec}) ->
    (Msec * 1000000 + Sec) * 1000 + Usec div 1000.
@@ -108,7 +113,7 @@ milli({Msec, Sec, Usec}) ->
 %%
 %% current time in microseconds
 micro() ->
-   micro(erlang:now()).
+   micro(os:timestamp()).
 
 micro({Msec, Sec, Usec}) ->
    (Msec * 1000000 + Sec) * 1000000 + Usec.
@@ -122,7 +127,7 @@ micro({Msec, Sec, Usec}) ->
 %%
 %% increase time by T seconds
 inc(T) ->
-   inc(erlang:now(), sec(T)).
+   inc(os:timestamp(), sec(T)).
 
 inc({Msec, Sec, Usec}, T)
  when is_integer(T) ->
@@ -136,7 +141,7 @@ inc({Msec, Sec, Usec}, T)
 %%
 %% increase time by T seconds
 dec(T) ->
-   dec(erlang:now(), sec(T)).
+   dec(os:timestamp(), sec(T)).
 
 dec({Msec, Sec, Usec}, T)
  when is_integer(T) ->

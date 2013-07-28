@@ -13,20 +13,92 @@
 %%   See the License for the specific language governing permissions and
 %%   limitations under the License.
 %%
-%%   @description
-%%      scalar data type utility, 
+%% @description
+%%   scalar data type encode / decode utility 
+%%
 %%      built-in data type abbreviation: 
 %%         a - atom, b - binary, l - list, i - integer, f - float
 %%      
 %%      extended data type set
 %%         s - string (binary)
 %%         c - character list
+%%
+%% @todo
+%%   x(...) - unsigned int as a hexadecimal number.
+%%   o(...) - unsigned int in octal.
+%%
 -module(scalar).
 
 -export([
-   decode/1, 
-   s/1, c/1
+   i/1, %% int as a signed decimal number.
+   f/1, %% double in normal (fixed-point) notation  
+   s/1, %% null-terminated string (binary in Erlang)
+   c/1, %% char (character list)
+   decode/1 
 ]).
+
+%%
+%% scalar to integer
+-spec(i/1 :: (any()) -> integer()).
+
+i(X) when is_binary(X)  -> btoi(X);
+i(X) when is_atom(X)    -> atoi(X);
+i(X) when is_list(X)    -> ltoi(X);
+i(X) when is_integer(X) -> X;
+i(X) when is_float(X)   -> ftoi(X).
+
+btoi(X) -> ltoi(btol(X)).
+atoi(X) -> ltoi(atol(X)).
+ltoi(X) -> list_to_integer(X).
+ftoi(X) -> erlang:trunc(X).
+
+%%
+%% scalar to float
+-spec(f/1 :: (any()) -> float()).
+
+f(X) when is_binary(X)  -> btof(X);
+f(X) when is_atom(X)    -> atof(X);
+f(X) when is_list(X)    -> ltof(X);
+f(X) when is_integer(X) -> itof(X);
+f(X) when is_float(X)   -> X.
+
+btof(X) -> ltof(btol(X)).
+atof(X) -> ltof(atol(X)).
+ltof(X) -> list_to_float(X).
+itof(X) -> X + 0.0.
+
+%%
+%% scalar to string
+-spec(s/1 :: (any()) -> binary()).
+
+s(X) when is_binary(X)  -> btos(X);
+s(X) when is_atom(X)    -> atos(X);
+s(X) when is_list(X)    -> ltos(X);
+s(X) when is_integer(X) -> itos(X);
+s(X) when is_float(X)   -> ftos(X).
+
+btos(X) -> X.
+atos(X) -> atom_to_binary(X, utf8).
+ltos(X) -> list_to_binary(X).
+itos(X) -> ltos(itol(X)).
+ftos(X) -> ltos(io_lib:format("~.9f", [X])).
+
+%%
+%% character list
+-spec(c/1 :: (any()) -> list()).
+
+c(X) when is_binary(X)  -> btol(X);
+c(X) when is_atom(X)    -> atol(X);
+c(X) when is_list(X)    -> X;
+c(X) when is_integer(X) -> itol(X);
+c(X) when is_float(X)   -> ftol(X).
+
+btol(X) -> binary_to_list(X).
+atol(X) -> atom_to_list(X).
+itol(X) -> integer_to_list(X).
+ftol(X) -> lists:flatten(io_lib:format("~.9f", [X])).
+
+
 
 %%
 %% decode scalar type
@@ -66,66 +138,9 @@ decode(X)
    end.
 
 
-%%
-%% scalar to string
--spec(s/1 :: (any()) -> binary()).
-
-s(X) when is_binary(X)  -> btos(X);
-s(X) when is_atom(X)    -> atos(X);
-s(X) when is_list(X)    -> ltos(X);
-s(X) when is_integer(X) -> itos(X);
-s(X) when is_float(X)   -> ftos(X).
-
-%%
-%% character list
--spec(c/1 :: (any()) -> list()).
-
-c(X) when is_binary(X)  -> btoc(X);
-c(X) when is_atom(X)    -> atoc(X);
-c(X) when is_list(X)    -> ltoc(X);
-c(X) when is_integer(X) -> itoc(X);
-c(X) when is_float(X)   -> ftoc(X).
-
 %%%------------------------------------------------------------------
 %%%
 %%% private
 %%%
 %%%------------------------------------------------------------------   
-
-%%
-%% to string
-btos(X) -> X.
-atos(X) -> atom_to_binary(X, utf8).
-ltos(X) -> list_to_binary(X).
-itos(X) -> ltos(itol(X)).
-ftos(X) -> ltos(io_lib:format("~.9f", [X])).
-
-%%
-%% to character list
-btoc(X) -> btol(X).
-atoc(X) -> atol(X).
-ltoc(X) -> X.
-itoc(X) -> itol(X).
-ftoc(X) -> lists:flatten(io_lib:format("~.9f", [X])).
-
-
-
-%%
-%% to list
-atol(X) -> atom_to_list(X).
-itol(X) -> integer_to_list(X).
-btol(X) -> binary_to_list(X).
-
-%%
-%% from list
-ltoa(X) -> list_to_atom(X).
-ltoi(X) -> list_to_integer(X).
-ltof(X) -> list_to_float(X).
-
-%%
-%% from binary
-btoi(X) -> ltoi(btol(X)).
-btof(X) -> ltof(btol(X)).
-
-
 
