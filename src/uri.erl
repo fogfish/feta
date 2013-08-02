@@ -14,7 +14,7 @@
 %%   limitations under the License.
 %%
 %% @description
-%%    Implements http://tools.ietf.org/html/rfc3986
+%%    implements http://tools.ietf.org/html/rfc3986
 %%
 %%
 %%                userinfo
@@ -23,7 +23,7 @@
 %%         foo://userinfo@example.com:8042/over/there?name=ferret#nose
 %%         \_/            \______________/\_________/ \_________/ \__/
 %%          |                    |            |            |        |
-%%       scheme              authority       path        query   fragment
+%%       scheme              authority       path        query   fragment(anchor)
 %%          |       path
 %%          |   _____|__________________
 %%         / \ /                        \
@@ -34,12 +34,59 @@
 %%
 -module(uri).
 
--export([new/0, new/1, check/2]).
--export([get/2, set/3, add/3]).
--export([match/2, to_binary/1]).
--export([q/1, q/2, q/3]).
--export([unescape/1, escape/1]).
+-export([
+   new/0, 
+   new/1,
+   schema/1,
+   schema/2,
+   userinfo/1,
+   userinfo/2,
+   host/1,
+   host/2,
+   port/1,
+   port/2,
+   authority/1,
+   authority/2,
+   path/1,
+   path/2,
+   segments/1,
+   segments/2,
+   q/1,
+   q/2,
+   anchor/1,
+   anchor/2,
+   suburi/1,
+   suburi/2,
+   get/2,
+   set/3,
+   to_binary/1,
+   s/1,
+   c/1,
+   unescape/1, 
+   escape/1
+]).
+%    check/2]).
+% -export([add/3]).
+% -export([match/2]).
+% -export([]).
 
+-export_type([uri/0]).
+
+%% 
+-type(uri()    :: {uri, schema(), any()}).
+-type(schema() :: atom() | [atom()]).
+
+%% internal uri structures
+-record(uval, {
+   user  = undefined :: binary(),
+   host  = undefined :: binary(),
+   port  = undefined :: integer(),
+   path  = undefined :: binary(),
+   q     = undefined :: binary(),
+   anchor= undefined :: binary() 
+}).
+
+%% @depricated
 -define(USER,  1).
 -define(HOST,  2).
 -define(PORT,  3).
@@ -51,354 +98,318 @@
 -define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$>>>, <<$<>>, <<$=>>]).
 
 %%
-%% new(URI) -> {uri, ...}
-%%   URI       = list() | binary() | uri()
-%%
 %% parses URI into tuple, fails with badarg if invalid URI
+-spec(new/0 :: () -> uri()).
+-spec(new/1 :: (list() | binary() | atom() | uri()) -> uri()).
+
 new() ->
    new(undefined).
 
-new(Uri) when is_binary(Uri) ->
-   {Schema, Body} = tokenize(Uri),
-   {uri, Schema, Body};
+new(Uri)
+ when is_binary(Uri) ->
+   {Schema, UVal} = parse_uri(Uri),
+   {uri, Schema, UVal};
 
-new(Uri) when is_list(Uri) ->
+new(Uri)
+ when is_list(Uri) ->
    new(list_to_binary(Uri));
 
-new(Schema) when is_atom(Schema) ->
-   {uri, Schema, {<<>>, <<>>, undefined, <<>>, <<>>, <<>>}};
+new(Schema)
+ when is_atom(Schema) ->
+   {uri, Schema, #uval{}};
 
 new({uri, _, _} = Uri) ->
    Uri.
 
+%%%------------------------------------------------------------------
+%%%
+%%% setter / getters
+%%%
+%%%------------------------------------------------------------------   
+
 %%
-%% check([Elements], Uri) -> ok 
+%% uri schema
+-spec(schema/1 :: (uri()) -> schema()).
+-spec(schema/2 :: (schema(), uri()) -> uri()).
+
+schema({uri, S, _}) ->
+   S.
+
+schema(Val, {uri, _, U})
+ when is_atom(Val) orelse is_list(Val) ->
+   {uri, Val, U}.
+
 %%
-%% validates that URI components is defined, fails badarg otherwise
-check([], {uri, _,_} = Uri) ->
-   Uri;
-check([{Key, Val} | T], {uri, _,_} = Uri) ->
-   case uri:get(Key, Uri) of
-      Val -> check(T, Uri);
-      _   -> throw(badarg)
-   end;
-check([Key | T], {uri, _,_} = Uri) ->
-   case uri:get(Key, Uri) of
-      <<>>      -> throw(badarg);
-      undefined -> throw(badarg);
-      _         -> check(T, Uri)
-   end;
-check(List, Uri) ->
-   check(List, new(Uri)).   
-   
-   
-%%
-%% get(Item, Uri) -> binary() | integer()
-%%
-get(schema,   {uri, S, _}) -> 
-   S;
-get(userinfo, {uri, _, U}) ->
-   case binary:split(erlang:element(?USER, U), <<$:>>) of
+%% uri user info
+-spec(userinfo/1 :: (uri()) -> {binary(), binary()} | binary()).
+-spec(userinfo/2 :: ({any(), any()} | any(), uri()) -> uri()).
+
+userinfo({uri, _, #uval{user=undefined}}) ->
+   undefined;
+userinfo({uri, _, U}) ->
+   case binary:split(U#uval.user, <<$:>>) of
       [User, Pass] -> {unescape(User), unescape(Pass)};
       [Info]       -> unescape(Info)
-   end;
-get(host,     {uri, _, U}) -> 
-   erlang:element(?HOST, U);
-get(port,     {uri, S, U}) -> 
-   schema_to_port(S, erlang:element(?PORT, U));
-get(authority,{uri, S, U}) -> 
-   {erlang:element(?HOST, U), schema_to_port(S, erlang:element(?PORT, U))};
-get(path,     {uri, _, U}) -> 
-   case unescape(erlang:element(?PATH, U)) of
+   end.
+
+userinfo({User0, Pass0}, {uri, S, U}) ->
+   User = escape(scalar:s(User0)),
+   Pass = escape(scalar:s(Pass0)),
+   {uri, S, U#uval{user = <<User/binary, $:, Pass/binary>>}};
+userinfo(Val, {uri, S, U}) ->
+   {uri, S, U#uval{user = escape(scalar:s(Val))}}.
+
+%%
+%%
+-spec(host/1 :: (uri()) -> binary()).
+-spec(host/2 :: (any(), uri()) -> uri()).
+
+host({uri, _, U}) ->
+   U#uval.host.
+
+host(Val, {uri, S, U}) ->
+   {uri, S, U#uval{host = scalar:s(Val)}}.
+
+%%
+%%
+-spec(port/1 :: (uri()) -> integer()).
+-spec(port/2 :: (any(), uri()) -> uri()).
+
+port({uri, S, U}) ->
+   schema_to_port(S, U#uval.port).
+
+port(Val, {uri, S, U}) ->
+   {uri, S, U#uval{port = scalar:i(Val)}}.
+
+%%
+%%
+-spec(authority/1 :: (uri()) -> {binary(), integer()}).
+-spec(authority/2 :: ({any(), any()} | any(), uri()) -> uri()).
+
+authority({uri, _, _}=Uri) ->
+   {uri:host(Uri), uri:port(Uri)}.
+
+authority({Host, Port}, {uri, _, _}=Uri) ->
+   uri:port(scalar:i(Port), uri:host(Host, Uri));
+
+authority(Val, {uri, _, _}=Uri) ->
+   case binary:split(scalar:s(Val), <<$:>>) of
+      [Host, Port] -> uri:authority({Host, Port}, Uri);
+      [Host]       -> uri:host(Host, Uri)
+   end.
+
+%%
+%%
+-spec(path/1 :: (uri()) -> binary()).
+-spec(path/2 :: (any(), uri()) -> uri()).
+
+path({uri, _, #uval{path=undefined}}) ->
+   undefined;
+path({uri, _, U}) ->
+   case unescape(U#uval.path) of
       <<>> -> <<$/>>;
       V    -> V
+   end.
+
+path(Val, {uri, S, U}) ->
+   % @todo: do we need to escape path
+   {uri, S, U#uval{path = scalar:s(Val)}}.
+
+%%
+%%
+-spec(segments/1 :: (uri()) -> [binary()]).
+-spec(segments/2 :: (any(), uri()) -> uri()).
+
+segments({uri, _, #uval{path=undefined}}) ->
+   undefined;
+segments({uri, _, U}) ->
+   case binary:split(U#uval.path, <<"/">>, [global, trim]) of
+      []         -> [];
+      [_ | Segs] -> Segs
+   end.
+
+segments(Val, Uri)
+ when is_list(Val) ->
+   uri:path(iolist_to_binary([[$/, escape(X)] || X <- Val]), Uri);
+
+segments(Val, Uri)
+ when is_tuple(Val) ->
+   uri:segments(tuple_to_list(Val), Uri).
+
+%%
+%%
+-spec(q/1 :: (uri()) -> [{binary(), binary()}]).
+-spec(q/2 :: (any(), uri()) -> uri()).
+
+q({uri, _, #uval{q=undefined}}) ->
+   undefined;
+q({uri, _, U}) ->
+   [get_qelement(?COMPARE, X) || X <- binary:split(U#uval.q, <<$&>>, [global])]. 
+
+get_qelement([], X)  ->
+   unescape(X);
+
+get_qelement([RegEx|T], X)
+ when RegEx =/= <<$=>> ->
+   case binary:match(X, RegEx) of
+      nomatch -> 
+         get_qelement(T, X);
+      _       ->
+         [Key, Val] = binary:split(X, RegEx),
+         {binary_to_atom(RegEx, utf8), unescape(Key), scalar:decode(unescape(Val))}
    end;
-get(segments, {uri, _, _}=Uri) ->
-   path_to_segments(uri:get(path, Uri));
-get(q,        {uri, _, U}) -> 
-   erlang:element(?QUERY, U);  % do not unescape a query so that =, & are distinguished
-get(fragment, {uri, _, U}) -> 
-   unescape(erlang:element(?FRAG,  U));
-get(suburi,   {uri, _, U}) ->
-   Path = erlang:element(?PATH, U),
-   Qbin = case erlang:element(?QUERY, U) of
-      <<>> -> <<>>;
-      Q    -> <<$?, Q/binary>>
-   end,
-   Fbin = case erlang:element(?FRAG, U) of
-      <<>> -> <<>>;
-      F    -> <<$#, F/binary>>
-   end,
-   <<Path/binary, Qbin/binary, Fbin/binary>>;   
-get(Item, Uri) 
+
+get_qelement([RegEx|T], X) ->
+   case binary:match(X, RegEx) of
+      nomatch -> 
+         get_qelement(T, X);
+      _       ->
+         [Key, Val] = binary:split(X, RegEx),
+         {unescape(Key), scalar:decode(unescape(Val))}
+   end.
+
+q(Val, {uri, S, U})
+ when is_binary(Val) ->
+   {uri, S, U#uval{q = escape(Val)}};
+q(Val, {uri, S, U})
+ when is_list(Val) ->
+   [H | T] = [set_qelement(X) || X <- Val],
+   Query   = iolist_to_binary([H] ++ [[$&, X] || X <- T]),
+   {uri, S, U#uval{q = Query}}.
+
+set_qelement({Cmd, Key, Val}) ->
+   <<(escape(scalar:s(Key)))/binary, (scalar:s(Cmd))/binary, (escape(scalar:s(Val)))/binary>>;
+set_qelement({Key, Val}) ->
+   <<(escape(scalar:s(Key)))/binary, $=, (escape(scalar:s(Val)))/binary>>;
+set_qelement(Key) ->
+   escape(scalar:s(Key)).
+
+%%
+%%
+-spec(anchor/1 :: (uri()) -> binary()).
+-spec(anchor/2 :: (any(), uri()) -> uri()).
+
+anchor({uri, _, U}) ->
+   unescape(U#uval.anchor).
+
+anchor(Val, {uri, S, U}) ->
+   {uri, S, U#uval{anchor = escape(scalar:s(Val))}}.
+
+%%
+%% suburi is /path?query#anchor
+-spec(suburi/1 :: (uri()) -> binary()).
+-spec(suburi/2 :: (any(), uri()) -> binary()).
+
+suburi({uri, _, U}=Uri) ->
+   <<(uri:path(Uri))/binary, (tosp(U#uval.q, $?))/binary, (tosp(U#uval.anchor, $#))/binary>>.
+
+suburi(Val, Uri) ->
+   {Path, Query, Anchor} = parser_heir_query_anchor(Val),
+   uri:anchor(Anchor,
+      uri:q(Query,
+         uri:path(Path, Uri)
+      )
+   ).
+
+
+%%
+%% compatibility wrapper for uri getter interface
+-spec(get/2 :: (atom(), uri()) -> any()).
+
+get(schema,   Uri) -> uri:schema(Uri); 
+get(userinfo, Uri) -> uri:userinfo(Uri);
+get(host,     Uri) -> uri:host(Uri);
+get(port,     Uri) -> uri:port(Uri);
+get(authority,Uri) -> uri:authority(Uri); 
+get(path,     Uri) -> uri:path(Uri); 
+get(segments, Uri) -> uri:segments(Uri);
+get(q,        Uri) -> uri:q(Uri); 
+get(fragment, Uri) -> uri:anchor(Uri);
+get(anchor,   Uri) -> uri:anchor(Uri);
+get(suburi,   Uri) -> uri:suburi(Uri);   
+get(Item,     Uri) 
  when is_binary(Uri) orelse is_list(Uri) -> 
    uri:get(Item, new(Uri)).
 
 %%
-%% set(Item, V, Uri) -> NUri
-%%
-set(schema,   V, {uri, _, U}) when is_atom(V) -> 
-   {uri, V, U};
-set(userinfo, V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?USER, U, escape(V))};
-set(host,     V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?HOST, U, V)};
-set(port,     V, {uri, S, U}) when is_integer(V) -> 
-   {uri, S, erlang:setelement(?PORT, U, V)};   
-set(authority, {Host, Port}, {uri, S, U}) when is_binary(Host), is_integer(Port) -> 
-   {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
-set(authority, {Host, Port}, {uri, S, U}) when is_list(Host), is_integer(Port) ->
-      {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, list_to_binary(Host)), Port)};   
-set(authority, V, {uri, S, U}) when is_binary(V) -> 
-   {Host,  Pbin} = suffix(V, <<$:>>),
-   Port = case Pbin of
-      <<>> ->  undefined;
-      _    ->  list_to_integer(binary_to_list(Pbin))
-   end,
-   {uri, S, erlang:setelement(?PORT, erlang:setelement(?HOST, U, Host), Port)};
-set(path,     V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?PATH, U, V)};
-set(segments, V, {uri, S, U}) when is_list(V) ->
-   Segs = lists:map(fun(X) -> [$/, escape(X)] end, V),
-   {uri, S, erlang:setelement(?PATH, U, list_to_binary(Segs))};
-set(q,        V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?QUERY, U, escape(V))};
-set(fragment, V, {uri, S, U}) when is_binary(V) -> 
-   {uri, S, erlang:setelement(?FRAG,  U, escape(V))};
-set(suburi,   V, {uri, S, U}) when is_binary(V) -> 
-   % suburi is /path?query#fragment
-   {Path,  V2}   = suffix(V,  <<$?>>),
-   {Query, Frag} = suffix(V2, <<$#>>),
-   U1 = erlang:setelement(?PATH,
-      erlang:setelement(
-         ?QUERY,
-         erlang:setelement(?FRAG, U, Frag),
-         Query
-      ),
-      Path
-   ),
-   {uri, S, U1};
-set(Item, {uri, _,_} = Src, {uri, _, _} = Dst) ->
-   set(Item, get(Item, Src), Dst);
-set(Item, V, Uri) when is_list(V) ->
-   set(Item, list_to_binary(V), Uri);
-set(Item, V, Uri)
+%% compatibility wrapper for uri setter interface
+set(schema,    Val, Uri) -> uri:schema(Val, Uri);
+set(userinfo,  Val, Uri) -> uri:userinfo(Val, Uri); 
+set(host,      Val, Uri) -> uri:host(Val, Uri); 
+set(port,      Val, Uri) -> uri:port(Val, Uri); 
+set(authority, Val, Uri) -> uri:authority(Val, Uri); 
+set(path,      Val, Uri) -> uri:path(Val, Uri); 
+set(segments,  Val, Uri) -> uri:segments(Val, Uri);
+set(q,         Val, Uri) -> uri:q(Val, Uri); 
+set(fragment,  Val, Uri) -> uri:anchor(Val, Uri);
+set(anchor,    Val, Uri) -> uri:anchor(Val, Uri);
+set(suburi,    Val, Uri) -> uri:suburi(Val, Uri);
+set(Item,      Val, Uri)
  when is_binary(Uri) orelse is_list(Uri) -> 
-   set(Item, V, new(Uri)).   
-
-%%
-%% add(Item, V, Uri) -> NUri
-%%
-%% add path token to uri
-add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
-   case uri:get(path, Uri) of
-      <<$/>> -> 
-         uri:set(path, <<$/, V/binary>>, Uri);
-      Path   ->
-         case binary:last(Path) of
-            $/ -> 
-               uri:set(path, <<Path/binary, V/binary>>, Uri);
-            _  ->
-               uri:set(path, <<Path/binary, $/, V/binary>>, Uri)
-         end
-   end;
-add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
-   case io_lib:printable_unicode_list(V) of
-      true  -> 
-         add(Item, list_to_binary(V), Uri);
-      false -> 
-         lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V)
-   end;
-add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
-   add(Item, tuple_to_list(V), Uri);
-add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
-   add(Item, atom_to_binary(V, utf8), Uri).
+   uri:set(Item, Val, new(Uri)).
 
 %%%------------------------------------------------------------------
 %%%
-%%% uri query
+%%% convert
 %%%
 %%%------------------------------------------------------------------
 
 %%
-%% q(Uri) -> [{Key, Val}]
-%%
-%% return URI query as list of Key/Val pairs
-q(List)
- when is_list(List) ->
-   [H | T] = [create_query_item(X) || X <- List],
-   list_to_binary([H | [ [$&, Y] || Y <- T]]);
-
-q({uri, _, _}=Uri) ->
-   [parse_query_item(?COMPARE, X) || X <- binary:split(uri:get(q, Uri), <<$&>>, [global])]. 
-
-create_query_item(Key)
- when is_atom(Key) ->
-   escape(Key);
-
-create_query_item({Key, Val})
- when is_atom(Key) ->
-   <<(escape(Key))/binary, $=, (escape(Val))/binary>>.
-
-parse_query_item([], X)  ->
-   unescape(X);
-
-parse_query_item([<<$=>>=RegEx|T], X) ->
-   case binary:match(X, RegEx) of
-      nomatch -> 
-         parse_query_item(T, X);
-      _       ->
-         [Key, Val] = binary:split(X, RegEx),
-         {unescape(Key), parser:scalar(unescape(Val))}
-   end;
-
-parse_query_item([RegEx|T], X) ->
-   case binary:match(X, RegEx) of
-      nomatch -> 
-         parse_query_item(T, X);
-      _       ->
-         [Key, Val] = binary:split(X, RegEx),
-         {binary_to_atom(RegEx, utf8), unescape(Key), parser:scalar(unescape(Val))}
-   end.
+%% convert uri to binary
+%% @depricated
+to_binary(Uri) ->
+   uri:s(Uri).
 
 %%
-%% q(Key, Uri) -> Val | true | undefined
-%% q(Key, Uri, Default) -> Val
-q(Key, Uri) ->
-   q(Key, undefined, Uri).
-
-q(Key, Default, Uri)
- when is_atom(Key) ->
-   q(atom_to_binary(Key, utf8), Default, Uri);
-
-q(Key, Default, Uri)
- when is_binary(Key) ->
-   List = q(Uri),
-   case lists:member(Key, List) of
-      true  -> 
-         true;
-      false ->
-         case lists:keyfind(Key, 1, List) of
-            {Key, Val} -> Val;
-            _          -> Default
-         end
-   end.
+%%
+c(Uri) ->
+   binary_to_list(uri:s(Uri)).
 
 %%
-%% match(Uri, TUri) -> true | false
 %%
-%% match Uri to template
-match({uri, _, _}=Uri, {uri, _, _}=TUri) ->
-   match([schema, userinfo, host, port, segments, q, fragment], Uri, TUri);
+s({uri, S, U}) ->
+   Schema= schema_to_s(S), 
+   User  = toss(U#uval.user,   $@),
+   Host  = tos(U#uval.host),
+   Port  = tosp(U#uval.port,   $:),
+   Path  = tos(U#uval.path),
+   Query = tosp(U#uval.q,      $?),
+   Anchor= tosp(U#uval.anchor, $#),
+   Auth  = if
+      User =/= <<>> orelse Port =/= <<>> orelse Host =/= <<>> -> 
+         <<"//">>;
+      true -> 
+         <<>>
+   end,
+   <<Schema/binary, Auth/binary, User/binary, Host/binary, Port/binary, Path/binary, Query/binary, Anchor/binary>>.
 
-match(Uri, TUri) ->
-   match(uri:new(Uri), uri:new(TUri)).
+%% to string
+tos(undefined) ->
+   <<>>;
+tos(Val) ->
+   scalar:s(Val).
 
-match([segments | T], Uri, TUri) ->
-   case uri:get(segments, TUri) of
-      []  -> match(T, Uri, TUri);
-      Val -> match_segments(uri:get(segments, Uri), Val)
-   end;
+%% to string with prefix
+tosp(undefined, _) ->
+   <<>>;
+tosp(Val,     Pfx) ->
+   <<Pfx, (scalar:s(Val))/binary>>.
 
-match([Tag | T], Uri, TUri) ->
-   case uri:get(Tag, TUri) of
-      undefined -> match(T, Uri, TUri);
-      <<>>      -> match(T, Uri, TUri);
-      Val       ->
-         case uri:get(Tag, Uri) of
-            Val -> match(T, Uri, TUri);
-            _   -> false
-         end
-   end;
-
-match([], _Uri, _TUri) ->
-   true.
-
-match_segments(_, [<<$*>>]) ->
-   true;
-
-match_segments([_ | T], [<<$_>> | TT]) ->
-   match_segments(T, TT);
-
-match_segments([_ | T], [<<$*>> | TT]) ->
-   match_segments(T, TT);
-
-match_segments([V | T], [TV | TT]) 
- when V =:= TV ->
-   match_segments(T, TT);
-
-match_segments([V | _], [TV | _]) 
- when V =/= TV ->
-   false;
-
-match_segments([], []) ->
-   true;
-
-match_segments(_, _) ->
-   false.
-
-
-
-% check([], {uri, _,_} = Uri) ->
-%    Uri;
-% check([{Key, Val} | T], {uri, _,_} = Uri) ->
-%    case uri:get(Key, Uri) of
-%       Val -> check(T, Uri);
-%       _   -> throw(badarg)
-%    end;
-% check([Key | T], {uri, _,_} = Uri) ->
-%    case uri:get(Key, Uri) of
-%       <<>>      -> throw(badarg);
-%       undefined -> throw(badarg);
-%       _         -> check(T, Uri)
-%    end;
-% check(List, Uri) ->
-%    check(List, new(Uri)).   
-
+%% to string with suffix
+toss(undefined, _) ->
+   <<>>;
+toss(Val,     Sfx) ->
+   <<(scalar:s(Val))/binary, Sfx>>.
 
 %%
-%% to_binary(Uri) ->
-%%
-%% converts uri to binary
-to_binary({uri, S, {User, Host, Port, Path, Q, F}}) ->
-   % schema
-   Sbin = case is_list(S) of
-      false -> 
-         if
-            S =:= undefined -> 
-               <<>>;
-            true -> 
-               <<(atom_to_binary(S, utf8))/binary, $:>>
-         end;
-      true  -> <<(
-         list_to_binary(
-            string:join(
-               lists:map(fun(X) -> atom_to_list(X) end, S),
-               "+"
-            )
-         )), $:>>
-   end,
-   Ubin = case User of
-     <<>> -> <<>>;
-     _    -> <<User/binary, $@>>
-   end,
-   Pbin = case Port of
-      undefined -> <<>>;
-      _         -> <<$:, (list_to_binary(integer_to_list(Port)))/binary>>
-   end,
-   Auth = if
-      Ubin =/= <<>> orelse Pbin =/= <<>> orelse Host =/= <<>> -> <<"//">>;
-      true -> <<>>
-   end,
-   Qbin = if
-      Q =/= <<>> -> <<$?, Q/binary>>;
-      true -> <<>>
-   end,
-   Fbin = if
-      F =/= <<>> -> <<$#, F/binary>>;
-      true -> <<>>
-   end,
-   <<Sbin/binary, Auth/binary, Ubin/binary, Host/binary, Pbin/binary, Path/binary, Qbin/binary, Fbin/binary>>.
+schema_to_s(undefined) ->
+   <<>>;
+schema_to_s(Val)
+ when not is_list(Val) ->
+   <<(scalar:s(Val))/binary, $:>>;
+schema_to_s([H|T]) ->
+   Schema = iolist_to_binary([scalar:s(H)] ++ [[$+, scalar:s(X)] || X <- T]),
+   <<Schema/binary, $:>>.   
 
 
 %%%------------------------------------------------------------------
@@ -500,10 +511,6 @@ decode(<<H:8, Rest/binary>>, Acc) ->
 decode(<<>>, Acc) ->
    Acc.
 
-
-
-
-         
 %%%------------------------------------------------------------------
 %%%
 %%% private
@@ -511,69 +518,75 @@ decode(<<>>, Acc) ->
 %%%------------------------------------------------------------------
 
 %%      URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
-tokenize(Uri0) ->
-   % uri
-   {Scheme, Uri1} = p_schema(Uri0),
-   {Heir,   Uri2} = suffix(Uri1, <<$?>>),
-   {Query,  Frag} = suffix(Uri2, <<$#>>),
+parse_uri(Uri0) ->
+   {Scheme, Uri1} = parse_schema(Uri0),
+   {Heir, Query, Anchor} = parser_heir_query_anchor(Uri1),
    % heir
    {Auth0, Path} = case Heir of
       <<"//", H/binary>> -> 
          case suffix(H, <<$/>>) of
-            {A, <<>>} -> {A, <<>>};
+            {A, undefined} -> {A, undefined};
             {A,    P} -> {A, <<$/, P/binary>>}
          end;
-      _                  -> {<<>>, Heir}
+      _                  -> {undefined, Heir}
    end,
    {User, Host0} = prefix(Auth0, <<$@>>),
    {Host,  Pbin} = suffix(Host0, <<$:>>),
    % parse port
    Port = case Pbin of
-      <<>> ->  undefined;
+      undefined ->  undefined;
       _    ->  list_to_integer(binary_to_list(Pbin))
    end,
-   {Scheme, {User, Host, Port, Path, Query, Frag}}.
+   {Scheme, #uval{user=User, host=Host, port=Port, path=Path, q=Query, anchor=Anchor}}.
 
 %%
-%%
-p_schema(<<$/, _/binary>>=Uri) ->
+parse_schema(<<$/, _/binary>>=Uri) ->
    {undefined, Uri};
-p_schema(Uri0) ->
-   case prefix(Uri0, <<$:>>) of
-      {<<>>, Uri} -> 
-         {undefined, Uri};
-      {Scheme, Uri} ->
-         case binary:split(Scheme, <<$+>>, [global]) of
-            [S] -> {binary_to_atom(S, utf8), Uri};
-             S  -> {lists:map(fun(X) -> binary_to_atom(X, utf8) end, S), Uri}
-         end
+parse_schema(Uri) ->
+   {Scheme, Suffix} = prefix(Uri, <<$:>>),
+   {schema_to_uri(Scheme), Suffix}.
+
+%% convert binary schema to uri format
+schema_to_uri(undefined) ->
+   undefined;
+schema_to_uri(Scheme) ->
+   case binary:split(Scheme, <<$+>>, [global]) of
+      [S] ->  binary_to_atom(S, utf8);
+       S  -> [binary_to_atom(X, utf8) || X <- S]
    end.
-   
+
 %%
-%% split Uri substring at token T, 
-%% fails if T is not found
-% split(Uri, T) ->
-%    case binary:split(Uri, T) of
-%       [Token, Rest] -> {Token, Rest};
-%       _             -> throw(baduri)
-%    end.
+parser_heir_query_anchor(Uri) ->
+   case suffix(Uri, <<$?>>) of
+      {Prefix, undefined} ->
+         {Heir, Anchor}  = suffix(Prefix,   <<$#>>),
+         {Heir, undefined, Anchor};
+      {Heir, Suffix}    ->
+         {Query, Anchor} = suffix(Suffix, <<$#>>),
+         {Heir, Query, Anchor}
+   end.
+
 
 %%
 %% split Uri substring at token T, 
-%% return empty suffix if T is not found    
+%% return empty suffix if T is not found
+suffix(undefined, _) ->
+   {undefined, undefined};    
 suffix(Uri, T) ->
    case binary:split(Uri, T) of
       [Token, Rest] -> {Token, Rest};
-      _             -> {Uri,   <<>>}
+      _             -> {Uri,   undefined}
    end.
 
 %%
 %% split Uri substring at token T,
 %% return empty prefix if T is not found
+prefix(undefined, _) ->
+   {undefined, undefined};
 prefix(Uri, T) ->
    case binary:split(Uri, T) of
       [Token, Rest] -> {Token, Rest};
-      _             -> {<<>>,  Uri}
+      _             -> {undefined,  Uri}
    end.   
 
 
@@ -587,26 +600,5 @@ schema_to_port(ssl,    undefined) -> 443;  % custom schema for ssl sensors
 schema_to_port(https,  undefined) -> 443;
 schema_to_port(wss,    undefined) -> 443;
 schema_to_port(mysql,  undefined) -> 3306;
-%schema_to_port(undefined,    undefined) -> undefined;
 schema_to_port(_,      undefined) -> undefined;
-schema_to_port(_,   Port) when is_list(Port) -> list_to_integer(binary_to_list(Port));
-schema_to_port(_,   Port) when is_integer(Port) -> Port.   
-
-
-path_to_segments(Path) ->
-   case binary:split(Path, <<"/">>, [global, trim]) of
-      []         -> [];
-      [_ | Segs] -> Segs
-   end.
-
-% %%
-% %% used by uri:q to map query value to erlang term
-% q_to_term(<<"true">>)   -> true;
-% q_to_term(<<"false">>)  -> false;
-% q_to_term(X) ->
-%    case re:run(X, "^(-?[0-9]+)(\\.[0-9]+)?([eE][+-]?[0-9])?$") of
-%       {match, [_, _]}       -> list_to_integer(binary_to_list(X));
-%       {match, [_, _, _]}    -> list_to_float(binary_to_list(X)); 
-%       {match, [_, _, _, _]} -> list_to_float(binary_to_list(X));
-%       nomatch -> X
-%    end.   
+schema_to_port(_,           Port) -> scalar:i(Port).
