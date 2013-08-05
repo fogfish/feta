@@ -65,7 +65,11 @@
    s/1,
    c/1,
    unescape/1, 
-   escape/1
+   escape/1,
+   % deprecated
+   check/2,
+   add/3,
+   match/2
 ]).
 %    check/2]).
 % -export([add/3]).
@@ -293,6 +297,8 @@ set_qelement(Key) ->
 -spec(anchor/1 :: (uri()) -> binary()).
 -spec(anchor/2 :: (any(), uri()) -> uri()).
 
+anchor({uri, _, #uval{q=undefined}}) ->
+   undefined;
 anchor({uri, _, U}) ->
    unescape(U#uval.anchor).
 
@@ -535,6 +541,113 @@ decode(<<H:8, Rest/binary>>, Acc) ->
    decode(Rest, <<Acc/binary, H>>);
 decode(<<>>, Acc) ->
    Acc.
+
+%%%------------------------------------------------------------------
+%%%
+%%% deprecated
+%%%
+%%%------------------------------------------------------------------
+
+%%
+%% check([Elements], Uri) -> ok 
+%%
+%% validates that URI components is defined, fails badarg otherwise
+check([], {uri, _,_} = Uri) ->
+   Uri;
+check([{Key, Val} | T], {uri, _,_} = Uri) ->
+   case uri:get(Key, Uri) of
+      Val -> check(T, Uri);
+      _   -> throw(badarg)
+   end;
+check([Key | T], {uri, _,_} = Uri) ->
+   case uri:get(Key, Uri) of
+      <<>>      -> throw(badarg);
+      undefined -> throw(badarg);
+      _         -> check(T, Uri)
+   end;
+check(List, Uri) ->
+   check(List, new(Uri)).  
+
+%%
+%% add(Item, V, Uri) -> NUri
+%%
+%% add path token to uri
+add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
+   case uri:get(path, Uri) of
+      X when X =:= <<$/>> orelse X =:= undefined -> 
+         uri:set(path, <<$/, V/binary>>, Uri);
+      Path   ->
+         case binary:last(Path) of
+            $/ -> 
+               uri:set(path, <<Path/binary, V/binary>>, Uri);
+            _  ->
+               uri:set(path, <<Path/binary, $/, V/binary>>, Uri)
+         end
+   end;
+add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
+   case io_lib:printable_unicode_list(V) of
+      true  -> 
+         add(Item, list_to_binary(V), Uri);
+      false -> 
+         lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V)
+   end;
+add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
+   add(Item, tuple_to_list(V), Uri);
+add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
+   add(Item, atom_to_binary(V, utf8), Uri).
+
+%%
+%% match(Uri, TUri) -> true | false
+%%
+%% match Uri to template
+match({uri, _, _}=Uri, {uri, _, _}=TUri) ->
+   match([schema, userinfo, host, port, segments, q, fragment], Uri, TUri);
+
+match(Uri, TUri) ->
+   match(uri:new(Uri), uri:new(TUri)).
+
+match([segments | T], Uri, TUri) ->
+   case uri:get(segments, TUri) of
+      []  -> match(T, Uri, TUri);
+      Val -> match_segments(uri:get(segments, Uri), Val)
+   end;
+
+match([Tag | T], Uri, TUri) ->
+   case uri:get(Tag, TUri) of
+      undefined -> match(T, Uri, TUri);
+      <<>>      -> match(T, Uri, TUri);
+      Val       ->
+         case uri:get(Tag, Uri) of
+            Val -> match(T, Uri, TUri);
+            _   -> false
+         end
+   end;
+
+match([], _Uri, _TUri) ->
+   true.
+
+match_segments(_, [<<$*>>]) ->
+   true;
+
+match_segments([_ | T], [<<$_>> | TT]) ->
+   match_segments(T, TT);
+
+match_segments([_ | T], [<<$*>> | TT]) ->
+   match_segments(T, TT);
+
+match_segments([V | T], [TV | TT]) 
+ when V =:= TV ->
+   match_segments(T, TT);
+
+match_segments([V | _], [TV | _]) 
+ when V =/= TV ->
+   false;
+
+match_segments([], []) ->
+   true;
+
+match_segments(_, _) ->
+   false.
 
 %%%------------------------------------------------------------------
 %%%
