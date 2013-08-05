@@ -357,8 +357,10 @@ set(Item,      Val, Uri)
 %% helper function to read key value from query
 -spec(q/3 :: (any(), any(), uri()) -> uri()).
 
+q(_Key, Default, {uri, _, #uval{q=undefined}}) ->
+   Default;
 q(Key, Default, Uri) ->
-   case lists:keyfind(Key, 1, uri:q(Uri)) of
+   case lists:keyfind(scalar:s(Key), 1, uri:q(Uri)) of
       false    -> Default;
       {_, Val} -> Val
    end.
