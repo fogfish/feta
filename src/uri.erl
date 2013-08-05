@@ -360,9 +360,16 @@ set(Item,      Val, Uri)
 q(_Key, Default, {uri, _, #uval{q=undefined}}) ->
    Default;
 q(Key, Default, Uri) ->
-   case lists:keyfind(scalar:s(Key), 1, uri:q(Uri)) of
-      false    -> Default;
-      {_, Val} -> Val
+   Qlist = uri:q(Uri),
+   Qkey  = scalar:s(Key),
+   case lists:keyfind(Qkey, 1, Qlist) of
+      false    -> 
+         case lists:member(Qkey, Qlist) of
+            true  -> true;
+            false -> Default
+         end;
+      {_, Val} -> 
+         Val
    end.
 
 
