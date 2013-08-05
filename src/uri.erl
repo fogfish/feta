@@ -59,6 +59,8 @@
    suburi/2,
    get/2,
    set/3,
+   % helper functions
+   q/3,
    to_binary/1,
    s/1,
    c/1,
@@ -284,6 +286,8 @@ set_qelement({Key, Val}) ->
 set_qelement(Key) ->
    escape(scalar:s(Key)).
 
+
+
 %%
 %%
 -spec(anchor/1 :: (uri()) -> binary()).
@@ -347,6 +351,18 @@ set(suburi,    Val, Uri) -> uri:suburi(Val, Uri);
 set(Item,      Val, Uri)
  when is_binary(Uri) orelse is_list(Uri) -> 
    uri:set(Item, Val, new(Uri)).
+
+
+%%
+%% helper function to read key value from query
+-spec(q/3 :: (any(), any(), uri()) -> uri()).
+
+q(Key, Default, Uri) ->
+   case lists:keyfind(Key, 1, uri:q(Uri)) of
+      false    -> Default;
+      {_, Val} -> Val
+   end.
+
 
 %%%------------------------------------------------------------------
 %%%
