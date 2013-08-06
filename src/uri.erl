@@ -326,6 +326,9 @@ suburi(Val, Uri) ->
 %% compatibility wrapper for uri getter interface
 -spec(get/2 :: (atom(), uri()) -> any()).
 
+get(Item,     Uri) 
+ when is_binary(Uri) orelse is_list(Uri) -> 
+   uri:get(Item, new(Uri));
 get(schema,   Uri) -> uri:schema(Uri); 
 get(userinfo, Uri) -> uri:userinfo(Uri);
 get(host,     Uri) -> uri:host(Uri);
@@ -336,13 +339,13 @@ get(segments, Uri) -> uri:segments(Uri);
 get(q,        Uri) -> uri:q(Uri); 
 get(fragment, Uri) -> uri:anchor(Uri);
 get(anchor,   Uri) -> uri:anchor(Uri);
-get(suburi,   Uri) -> uri:suburi(Uri);   
-get(Item,     Uri) 
- when is_binary(Uri) orelse is_list(Uri) -> 
-   uri:get(Item, new(Uri)).
+get(suburi,   Uri) -> uri:suburi(Uri).
 
 %%
 %% compatibility wrapper for uri setter interface
+set(Item,      Val, Uri)
+ when is_binary(Uri) orelse is_list(Uri) -> 
+   uri:set(Item, Val, new(Uri));
 set(schema,    Val, Uri) -> uri:schema(Val, Uri);
 set(userinfo,  Val, Uri) -> uri:userinfo(Val, Uri); 
 set(host,      Val, Uri) -> uri:host(Val, Uri); 
@@ -353,10 +356,7 @@ set(segments,  Val, Uri) -> uri:segments(Val, Uri);
 set(q,         Val, Uri) -> uri:q(Val, Uri); 
 set(fragment,  Val, Uri) -> uri:anchor(Val, Uri);
 set(anchor,    Val, Uri) -> uri:anchor(Val, Uri);
-set(suburi,    Val, Uri) -> uri:suburi(Val, Uri);
-set(Item,      Val, Uri)
- when is_binary(Uri) orelse is_list(Uri) -> 
-   uri:set(Item, Val, new(Uri)).
+set(suburi,    Val, Uri) -> uri:suburi(Val, Uri).
 
 
 %%
