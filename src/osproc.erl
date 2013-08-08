@@ -8,7 +8,7 @@
 ]).
 
 -define(BOOTSTRAP, "
-   echo \"pkill -9 $$\";
+   echo \"pkill -9 -P $$\";
    exec ~s ~s
 ").
 
