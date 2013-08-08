@@ -8,7 +8,7 @@
 ]).
 
 -define(BOOTSTRAP, "
-   echo \"kill -9 $$\";
+   echo \"pkill -9 $$\";
    exec ~s ~s
 ").
 
@@ -40,11 +40,20 @@ init([Cmd, Args]) ->
    ),
    {ok, {Port, undefined}}.
 
-build_cmd(Cmd, Args) ->
+build_cmd(Cmd, Args)
+ when is_atom(Cmd) ->
    io_lib:format(?BOOTSTRAP, [
       os:find_executable(Cmd),
       string:join(Args, " ")
+   ]);
+
+build_cmd(Cmd, Args)
+ when is_list(Cmd) orelse is_binary(Cmd) ->
+   io_lib:format(?BOOTSTRAP, [
+      Cmd,
+      string:join(Args, " ")
    ]).
+
 
 terminate(_, {Port, undefined}) ->
    maybe_close_port(erlang:port_info(Port), Port),
@@ -78,7 +87,7 @@ handle_info({_Port, {exit_status, 0}}, S) ->
 handle_info({_Port, {exit_status, Reason}}, S) ->
    {stop, {?MODULE, Reason}, S};
 
-handle_info({_, {data, [$k, $i, $l, $l | _]=Kill}}, {Port, _}) ->
+handle_info({_, {data, [$p, $k, $i, $l, $l | _]=Kill}}, {Port, _}) ->
    {noreply, {Port, Kill}};
 
 handle_info(_, S) ->
