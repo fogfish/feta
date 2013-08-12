@@ -18,6 +18,11 @@
 -module(tempus).
 
 -export([
+   % events
+   event/2,
+   reset/2,
+   cancel/1,
+
    % time convert utility
    now/0, 
    sec/0, 
@@ -36,6 +41,56 @@
 
 %% number of sec to Unix Epoch
 -define(UNX_EPOCH, 62167219200).
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% events
+%%%
+%%%------------------------------------------------------------------
+
+%%
+%% raise event after timeout
+-spec(event/2 :: (integer() | any(), any()) -> any()).
+
+event(T, Evt)
+ when is_integer(T) ->
+   {evt, T, erlang:send_after(T, self(), Evt)};
+
+event({evt, _, _}=T, _Evt) ->
+   T;
+
+event(T, _) ->
+   T.
+
+%%
+%% reset event's timeout 
+-spec(reset/2 :: (integer() | any(), any()) -> any()).
+
+reset(T, Msg)
+ when is_integer(T) ->
+   tempus:event(T, Msg);
+
+reset(T, Evt) ->
+   tempus:event(tempus:cancel(T), Evt).
+
+%%
+%% cancel event
+-spec(cancel/1 :: (any()) -> integer()).
+
+cancel(T)
+ when is_integer(T) ->
+   T;
+
+cancel({evt, T, Timer}) ->
+   erlang:cancel_timer(Timer),
+   T;
+
+cancel(T) ->
+   T.
+
+
+
 
 %%%------------------------------------------------------------------
 %%%

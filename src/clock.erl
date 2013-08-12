@@ -1,5 +1,5 @@
-%% @description
-%%
+%% @deprecated
+%%  
 -module(clock).
 
 -export([
