@@ -32,6 +32,8 @@
 %%    Serialized as nested tuple {uri, Schema, {...}}
 %%     
 %%
+%% @todo
+%%   * espace works badly when URI is copied (proper escaping)
 -module(uri).
 
 -export([
@@ -158,6 +160,8 @@ userinfo({uri, _, U}) ->
       [Info]       -> unescape(Info)
    end.
 
+userinfo(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{user = undefined}};
 userinfo({User0, Pass0}, {uri, S, U}) ->
    User = escape(scalar:s(User0)),
    Pass = escape(scalar:s(Pass0)),
@@ -173,6 +177,8 @@ userinfo(Val, {uri, S, U}) ->
 host({uri, _, U}) ->
    U#uval.host.
 
+host(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{host = undefined}};
 host(Val, {uri, S, U}) ->
    {uri, S, U#uval{host = scalar:s(Val)}}.
 
@@ -184,6 +190,8 @@ host(Val, {uri, S, U}) ->
 port({uri, S, U}) ->
    schema_to_port(S, U#uval.port).
 
+port(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{port = undefined}};
 port(Val, {uri, S, U}) ->
    {uri, S, U#uval{port = scalar:i(Val)}}.
 
@@ -194,6 +202,9 @@ port(Val, {uri, S, U}) ->
 
 authority({uri, _, _}=Uri) ->
    {uri:host(Uri), uri:port(Uri)}.
+
+authority(undefined, Uri) ->
+   uri:port(undefined, uri:host(undefined, Uri));
 
 authority({Host, Port}, {uri, _, _}=Uri) ->
    uri:port(scalar:i(Port), uri:host(Host, Uri));
@@ -217,6 +228,8 @@ path({uri, _, U}) ->
       V    -> V
    end.
 
+path(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{path = undefined}};   
 path(Val, {uri, S, U}) ->
    % @todo: do we need to escape path
    {uri, S, U#uval{path = scalar:s(Val)}}.
@@ -233,6 +246,9 @@ segments({uri, _, U}) ->
       []         -> [];
       [_ | Segs] -> Segs
    end.
+
+segments(undefined, Uri) ->
+   uri:path(undefined, Uri);
 
 segments(Val, Uri)
  when is_list(Val) ->
@@ -274,6 +290,8 @@ get_qelement([RegEx|T], X) ->
          {unescape(Key), scalar:decode(unescape(Val))}
    end.
 
+q(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{q = undefined}};
 q(Val, {uri, S, U})
  when is_binary(Val) ->
    {uri, S, U#uval{q = escape(Val)}};
@@ -302,6 +320,8 @@ anchor({uri, _, #uval{q=undefined}}) ->
 anchor({uri, _, U}) ->
    unescape(U#uval.anchor).
 
+anchor(undefined, {uri, S, U}) ->
+   {uri, S, U#uval{anchor = undefined}};
 anchor(Val, {uri, S, U}) ->
    {uri, S, U#uval{anchor = escape(scalar:s(Val))}}.
 
@@ -313,6 +333,13 @@ anchor(Val, {uri, S, U}) ->
 suburi({uri, _, U}=Uri) ->
    <<(uri:path(Uri))/binary, (tosp(U#uval.q, $?))/binary, (tosp(U#uval.anchor, $#))/binary>>.
 
+suburi(undefined, Uri) ->
+   uri:anchor(undefined,
+      uri:q(undefined,
+         uri:path(undefined, Uri)
+      )
+   );
+   
 suburi(Val, Uri) ->
    {Path, Query, Anchor} = parser_heir_query_anchor(Val),
    uri:anchor(Anchor,
