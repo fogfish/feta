@@ -55,21 +55,21 @@
    segments/2,
    q/1,
    q/2,
+   q/3,
    anchor/1,
    anchor/2,
    suburi/1,
    suburi/2,
    get/2,
    set/3,
+   check/2,
    % helper functions
-   q/3,
    to_binary/1,
    s/1,
    c/1,
    unescape/1, 
    escape/1,
    % deprecated
-   check/2,
    add/3,
    match/2
 ]).
@@ -315,7 +315,7 @@ set_qelement(Key) ->
 -spec(anchor/1 :: (uri()) -> binary()).
 -spec(anchor/2 :: (any(), uri()) -> uri()).
 
-anchor({uri, _, #uval{q=undefined}}) ->
+anchor({uri, _, #uval{anchor=undefined}}) ->
    undefined;
 anchor({uri, _, U}) ->
    unescape(U#uval.anchor).
@@ -405,6 +405,26 @@ q(Key, Default, Uri) ->
          Val
    end.
 
+%%
+%% check([Elements], Uri) -> ok 
+%%
+%% validates that URI components is defined, fails badarg otherwise
+%% @todo: rename assert
+check([], {uri, _,_} = Uri) ->
+   Uri;
+check([{Key, Val} | T], {uri, _,_} = Uri) ->
+   case uri:get(Key, Uri) of
+      Val -> check(T, Uri);
+      _   -> throw({badarg, Key, Val})
+   end;
+check([Key | T], {uri, _,_} = Uri) ->
+   case uri:get(Key, Uri) of
+      <<>>      -> throw({badarg, Key});
+      undefined -> throw({badarg, Key});
+      _         -> check(T, Uri)
+   end;
+check(List, Uri) ->
+   check(List, new(Uri)).  
 
 %%%------------------------------------------------------------------
 %%%
@@ -575,25 +595,6 @@ decode(<<>>, Acc) ->
 %%%
 %%%------------------------------------------------------------------
 
-%%
-%% check([Elements], Uri) -> ok 
-%%
-%% validates that URI components is defined, fails badarg otherwise
-check([], {uri, _,_} = Uri) ->
-   Uri;
-check([{Key, Val} | T], {uri, _,_} = Uri) ->
-   case uri:get(Key, Uri) of
-      Val -> check(T, Uri);
-      _   -> throw(badarg)
-   end;
-check([Key | T], {uri, _,_} = Uri) ->
-   case uri:get(Key, Uri) of
-      <<>>      -> throw(badarg);
-      undefined -> throw(badarg);
-      _         -> check(T, Uri)
-   end;
-check(List, Uri) ->
-   check(List, new(Uri)).  
 
 %%
 %% add(Item, V, Uri) -> NUri
