@@ -16,11 +16,32 @@
 %%
 %%    Strategy 3 (single):
 %%    Each node claims a single partition only
+%%
+%% @todo
+%%    * predecessors with filter fun
 -module(ring).
 
--export([new/0, new/1, join/2, join/3, leave/2]).
--export([address/2, members/1, is_member/2, shards/1, shards/2, whereis/2]).
--export([successors/2, predecessors/2]).
+-export([
+   new/0, 
+   new/1, 
+
+   join/2, 
+   join/3, 
+   leave/2,
+
+   address/2,
+   members/1,
+   member/2,
+
+   shards/1,
+   shards/2, 
+   whereis/2,
+
+   successors/2,
+   predecessors/2,
+   p/2,
+   n/2
+]).
 
 %%
 -record(ring, {
@@ -35,7 +56,16 @@
 }).
 
 %%
-%% create new ring and seed it with node
+%% create new ring
+%% Options
+%%   {type,    chord | token | single} - ring strategy
+%%   {modulo,  integer()}  - ring module power of 2 is required
+%%   {hash,    md5 | sha1} - ring hashing algorithm
+%%   {shard,   integer()}  - number of shard 
+%%   {replica, integer()}  - number of replicas
+-spec(new/0 :: () -> #ring{}).
+-spec(new/1 :: (list()) -> #ring{}).
+
 new() ->
    new([]).
 new(Opts) ->
@@ -64,117 +94,10 @@ init([], R) ->
    reset(R).
 
 %%
-%% address(Key, Ring) -> Addr
-%%
-%% maps key into address on the ring
-address(X, #ring{})
- when is_integer(X) ->
-   X;
+%% join node to the ring, exit on node address collision
+-spec(join/2 :: (any(), #ring{}) -> #ring{}).
+-spec(join/3 :: (any(), any(), #ring{}) -> #ring{}).
 
-address({addr, X}, #ring{}) ->
-   X;
-
-address({hash, X}, #ring{m=M}) ->
-   <<Addr:M, _/bits>> = X,
-   Addr;
-
-address(X, #ring{hash=md5, m=M}) ->
-   <<Addr:M, _/bits>> = erlang:md5(term_to_binary(X)),
-   Addr;
-
-address(X, #ring{hash=sha1, m=M})->
-   <<Addr:M, _/bits>> = crypto:sha(term_to_binary(X)),
-   Addr.
-
-%%
-%% members(Ring) -> Nodes
-%%
-%% return list of ring members
-members(#ring{shards=Shards}) ->
-   lists:usort([X || {_, X} <- Shards, X =/= undefined]).
-
-%%
-%% is_member(Node, Ring) -> true | false
-%%
-%% check if node belongs to ring
-is_member(Fun, #ring{shards=Shards}) 
- when is_function(Fun) ->
-   [X || {_, X} <- Shards, Fun(X)] =/= [];
-
-is_member(Node, #ring{shards=Shards}) ->
-   [X || {_, X} <- Shards, X =:= Node] =/= [].
-
-%%
-%% shards(Node, Ring) -> Shards
-%%
-%% return list of shards owned by ring or node
-shards(#ring{shards=Shards}) ->
-   Shards.
-
-shards(Fun, #ring{shards=Shards})
- when is_function(Fun) ->
-   [X || {X, N} <- Shards, Fun(N)];
-
-shards(Node, #ring{shards=Shards}) ->
-   [X || {X, N} <- Shards, N =:= Node].
-
-%%
-%% whereis(Addr, Ring) -> {Shard, Node}
-%%
-%% lookup shard/node pair mastering Addr
-whereis(Addr, #ring{shards=Shards})
- when is_integer(Addr) ->
-   hd(lists:dropwhile(fun({X, _}) -> X < Addr end, Shards)).
-
-
-% TODO: predecessors with filter fun
-
-%%
-%% predecessors(Addr, Ring) -> Nodes
-%%
-%% return unique list of predecessors 
-predecessors(Addr, #ring{n=N, shards=Shards})
- when is_integer(Addr) ->
-   {Head, Tail} = lists:partition(
-       fun({X, _}) -> X >= Addr end,
-       Shards
-   ),
-   lists:filter(
-      fun(X) -> X =/= undefined end,
-      lists:sublist(
-         unique(lists:reverse(Tail) ++ lists:reverse(Head)),
-         N
-      )
-   );
-
-predecessors(Key, Ring) ->
-   predecessors(address(Key, Ring), Ring).
-
-%%
-%% successors(Addr, Ring) -> Nodes
-%% 
-%% return unique list of successors
-successors(Addr, #ring{n=N, shards=Shards})
- when is_integer(Addr) ->
-   {Head, Tail} = lists:partition(
-       fun({X, _}) -> X >= Addr end,
-       Shards
-   ),
-   lists:filter(
-      fun(X) -> X =/= undefined end,
-      lists:sublist(
-         unique(Head ++ Tail),
-         N
-      )
-   );
-
-successors(Key, Ring) ->
-   successors(address(Key, Ring), Ring).
-
-%%
-%% join(Addr, Node, Ring) -> Ring
-%%
-%% join node to the ring
 join(Node, Ring) ->
    join(Node, Node, Ring).
 
@@ -195,9 +118,9 @@ join(Addr, Node, Ring) ->
 
 
 %%
-%% leave(Node, Ring) -> Ring
-%%
 %% leave node
+-spec(leave/2 :: (any(), #ring{}) -> #ring{}).
+
 leave(Node, #ring{type=chord}=R) ->
    chord_leave(Node, R);
 
@@ -206,6 +129,126 @@ leave(Node, #ring{type=token}=R) ->
 
 leave(Node, #ring{type=single}=R) ->
    single_leave(Node, R).
+
+
+%%
+%% maps key into address on the ring
+-spec(address/2 :: (any(), #ring{}) -> integer()).
+
+address(X, #ring{})
+ when is_integer(X) ->
+   X;
+
+address({addr, X}, #ring{}) ->
+   X;
+
+address({hash, X}, #ring{m=M}) ->
+   <<Addr:M, _/bits>> = X,
+   Addr;
+
+address(X, #ring{hash=md5, m=M}) ->
+   <<Addr:M, _/bits>> = erlang:md5(term_to_binary(X)),
+   Addr;
+
+address(X, #ring{hash=sha1, m=M})->
+   <<Addr:M, _/bits>> = crypto:sha(term_to_binary(X)),
+   Addr.
+
+%%
+%% return list of ring members
+-spec(members/1 :: (#ring{}) -> [any()]).
+
+members(#ring{shards=Shards}) ->
+   lists:usort([X || {_, X} <- Shards, X =/= undefined]).
+
+%%
+%% check if node belongs to ring and return its address
+-spec(member/2 :: (any() | function(), #ring{}) -> false | {integer(), any()}).
+
+member(Fun, #ring{shards=Shards}) 
+ when is_function(Fun) ->
+   case [X || {_, X} <- Shards, Fun(X)] of 
+      []  -> false;
+      Val -> hd(Val)
+   end;
+
+member(Node, #ring{master=Shards}) ->
+   lists:keyfind(Node, 2, Shards).
+
+
+%%
+%% return list of shards owned by ring or node
+-spec(shards/1 :: (#ring{}) -> [{integer(), any()}]).
+-spec(shards/2 :: (any() | function(), #ring{}) -> [{integer(), any()}]).
+
+shards(#ring{shards=Shards}) ->
+   Shards.
+
+shards(Fun, #ring{shards=Shards})
+ when is_function(Fun) ->
+   [X || {X, N} <- Shards, Fun(N)];
+
+shards(Node, #ring{shards=Shards}) ->
+   [X || {X, N} <- Shards, N =:= Node].
+
+%%
+%% lookup shard and node pair at address
+-spec(whereis/2 :: (integer(), #ring{}) -> {integer(), any()}).
+
+whereis(Addr, #ring{shards=Shards})
+ when is_integer(Addr) ->
+   hd(lists:dropwhile(fun({X, _}) -> X < Addr end, Shards)).
+
+
+%%
+%% return unique list of predecessors 
+-spec(predecessors/2 :: (any(), #ring{}) -> [any()]).
+
+predecessors(Addr, #ring{n=N, shards=Shards})
+ when is_integer(Addr) ->
+   {Head, Tail} = lists:partition(
+       fun({X, _}) -> X >= Addr end,
+       Shards
+   ),
+   lists:filter(
+      fun(X) -> X =/= undefined end,
+      lists:sublist(
+         unique(lists:reverse(Tail) ++ lists:reverse(Head)),
+         N
+      )
+   );
+
+predecessors(Key, Ring) ->
+   predecessors(address(Key, Ring), Ring).
+
+%% 
+%% return unique list of successors
+-spec(successors/2 :: (any(), #ring{}) -> [any()]).
+
+successors(Addr, #ring{n=N, shards=Shards})
+ when is_integer(Addr) ->
+   {Head, Tail} = lists:partition(
+       fun({X, _}) -> X >= Addr end,
+       Shards
+   ),
+   lists:filter(
+      fun(X) -> X =/= undefined end,
+      lists:sublist(
+         unique(Head ++ Tail),
+         N
+      )
+   );
+
+successors(Key, Ring) ->
+   successors(address(Key, Ring), Ring).
+
+%%
+p(Nodes, Shards) ->
+   1 - math:pow( (Shards - 1) / Shards, Nodes * (Nodes - 1) / 2).
+
+%%
+n(P, Shards) ->
+   math:sqrt(2 * Shards * 1 / (1 - P)).
 
 
 %%%------------------------------------------------------------------
@@ -224,12 +267,15 @@ chord_join(Addr, Node, #ring{node=0, master=Master, shards=Shards}=R) ->
 
 chord_join(Addr, Node, #ring{node=S, master=Master, shards=Shards}=R) ->
    % new node claim interval from current owner 
-   {A, Owner} = whereis(Addr, R),                % start of interval is first shard owner by new node
-   {B,     _} = lists:keyfind(Owner, 2, Master), % stop of  interval is first shard owner by existed node 
+   %  * start of interval is first shard owned by new node (new node request primary shard)
+   %  * stop of interval is either last shard owned by old node of its first shard
+   {A, Owner} = whereis(Addr, R), 
+   {M,     _} = member(Owner, R),
+   {B,     _} = whereis(M,    R),   
    % check against collisions
    if
       A =:= B -> 
-         throw(collision);
+         exit({collision, Addr, Node, Owner});
       true    ->
          R#ring{
             node   = S + 1,
