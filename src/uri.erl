@@ -143,6 +143,8 @@ new({uri, _, _} = Uri) ->
 -spec(schema/2 :: (schema(), uri()) -> uri()).
 
 schema({uri, S, _}) ->
+   S;
+schema({turi, S, _}) ->
    S.
 
 schema(Val, {uri, _, U})
@@ -176,8 +178,10 @@ userinfo(Val, {uri, S, U}) ->
 -spec(host/1 :: (uri()) -> binary()).
 -spec(host/2 :: (any(), uri()) -> uri()).
 
-host({uri, _, U}) ->
-   U#uval.host.
+host({uri,  _, U}) ->
+   U#uval.host;
+host({turi, _, {Host, _, _}}) ->
+   Host.
 
 host(undefined, {uri, S, U}) ->
    {uri, S, U#uval{host = undefined}};
@@ -190,7 +194,9 @@ host(Val, {uri, S, U}) ->
 -spec(port/2 :: (any(), uri()) -> uri()).
 
 port({uri, S, U}) ->
-   schema_to_port(S, U#uval.port).
+   schema_to_port(S, U#uval.port);
+port({turi, _, {_, Port, _}}) ->
+   Port.
 
 port(undefined, {uri, S, U}) ->
    {uri, S, U#uval{port = undefined}};
@@ -247,7 +253,10 @@ segments({uri, _, U}) ->
    case binary:split(U#uval.path, <<"/">>, [global, trim]) of
       []         -> [];
       [_ | Segs] -> Segs
-   end.
+   end;
+segments({turi, _, {_, _, Segments}}) ->
+   Segments.
+
 
 segments(undefined, Uri) ->
    uri:path(undefined, Uri);
