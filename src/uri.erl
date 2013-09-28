@@ -63,6 +63,8 @@
    get/2,
    set/3,
    check/2,
+   % uri template function
+   template/1, 
    % helper functions
    to_binary/1,
    s/1,
@@ -591,10 +593,105 @@ decode(<<>>, Acc) ->
 
 %%%------------------------------------------------------------------
 %%%
+%%% template
+%%%
+%%%------------------------------------------------------------------   
+
+%%
+%% make uri template
+template(TUri)
+ when is_list(TUri) orelse is_binary(TUri) ->
+   Uri = uri:new(TUri),
+   {turi, uri:schema(Uri), {uri:host(Uri), uri:port(Uri), uri:segments(Uri)}};
+
+template({turi, _, _}=TUri) ->
+   TUri.
+
+%%
+%% match uri to template
+match({uri, _, _}=Uri, {turi, _, _}=TUri) ->
+   match_segments(Uri, TUri,
+      match_port(Uri, TUri,
+         match_host(Uri, TUri,
+            match_schema(Uri, TUri, true)
+         )
+      )
+   );
+
+match(Uri, TUri) ->
+   match(uri:new(Uri), uri:template(TUri)).
+
+%%
+match_schema({uri, _, _}=Uri, {turi, Schema, _}, Acc) ->
+   match_acc(Acc, match_token(uri:schema(Uri), Schema)).
+
+%%
+match_host({uri, _, _}=Uri, {turi, _, {Host, _, _}}, Acc) ->
+   match_acc(Acc, match_token(uri:host(Uri), Host)).
+
+%%
+match_port({uri, _, _}, {turi, _, {_, undefined, _}}, Acc) ->
+   Acc;
+match_port({uri, _, _}=Uri, {turi, _, {_, Port, _}}, Acc) ->
+   match_acc(Acc, match_token(uri:port(Uri), Port)).
+
+%%
+match_segments({uri, _, _}=Uri, {turi, _, {_, _, Segments}}, Acc) ->
+   match_segments(uri:segments(Uri), Segments, Acc);
+
+match_segments(_, [<<$*>>], Acc) ->
+   match_acc(Acc, true);
+
+match_segments([A | Atail], [B | Btail], Acc) ->
+   match_segments(Atail, Btail, match_acc(Acc, match_token(A, B)));
+
+match_segments([], [], Acc) ->
+   Acc;
+
+match_segments(_, _, _) ->
+   false.
+
+%%   
+%% match individual token
+match_token(_Token, Lit)
+ when Lit =:= <<$*>> orelse Lit =:= '*' ->
+   true;
+
+match_token(undefined, _) ->
+   false;
+
+match_token(_Token, Lit)
+ when Lit =:= <<$_>> orelse Lit =:= '_' ->
+   true;
+
+match_token(Token,  <<$:, Key/binary>>) ->
+   {Key, Token};
+
+match_token(Token, Lit) ->
+   scalar:c(Token) =:= scalar:c(Lit).
+
+%%
+%% accumulate match results
+match_acc(false, _) ->
+   false;
+match_acc(_, false) ->
+   false;
+match_acc(true, {_, _}=Acc) ->
+   [Acc];
+match_acc(true, Acc) ->
+   Acc;
+match_acc(List, {_,_}=Acc) ->
+   [Acc | List];
+match_acc(List, _Acc) ->
+   List.
+
+
+
+%%%------------------------------------------------------------------
+%%%
 %%% deprecated
 %%%
 %%%------------------------------------------------------------------
-
 
 %%
 %% add(Item, V, Uri) -> NUri
@@ -623,59 +720,6 @@ add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
    add(Item, tuple_to_list(V), Uri);
 add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
    add(Item, atom_to_binary(V, utf8), Uri).
-
-%%
-%% match(Uri, TUri) -> true | false
-%%
-%% match Uri to template
-match({uri, _, _}=Uri, {uri, _, _}=TUri) ->
-   match([schema, userinfo, host, port, segments, q, fragment], Uri, TUri);
-
-match(Uri, TUri) ->
-   match(uri:new(Uri), uri:new(TUri)).
-
-match([segments | T], Uri, TUri) ->
-   case uri:get(segments, TUri) of
-      []  -> match(T, Uri, TUri);
-      Val -> match_segments(uri:get(segments, Uri), Val)
-   end;
-
-match([Tag | T], Uri, TUri) ->
-   case uri:get(Tag, TUri) of
-      undefined -> match(T, Uri, TUri);
-      <<>>      -> match(T, Uri, TUri);
-      Val       ->
-         case uri:get(Tag, Uri) of
-            Val -> match(T, Uri, TUri);
-            _   -> false
-         end
-   end;
-
-match([], _Uri, _TUri) ->
-   true.
-
-match_segments(_, [<<$*>>]) ->
-   true;
-
-match_segments([_ | T], [<<$_>> | TT]) ->
-   match_segments(T, TT);
-
-match_segments([_ | T], [<<$*>> | TT]) ->
-   match_segments(T, TT);
-
-match_segments([V | T], [TV | TT]) 
- when V =:= TV ->
-   match_segments(T, TT);
-
-match_segments([V | _], [TV | _]) 
- when V =/= TV ->
-   false;
-
-match_segments([], []) ->
-   true;
-
-match_segments(_, _) ->
-   false.
 
 %%%------------------------------------------------------------------
 %%%
