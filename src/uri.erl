@@ -648,6 +648,9 @@ match_segments([A | Atail], [B | Btail], Acc) ->
 match_segments([], [], Acc) ->
    Acc;
 
+match_segments(undefined, undefined, Acc) ->
+   Acc;
+
 match_segments(_, _, _) ->
    false.
 
@@ -657,7 +660,13 @@ match_token(_Token, Lit)
  when Lit =:= <<$*>> orelse Lit =:= '*' ->
    true;
 
+match_token(undefined, undefined) ->
+   true;
+
 match_token(undefined, _) ->
+   false;
+
+match_token(_, undefined) ->
    false;
 
 match_token(_Token, Lit)
