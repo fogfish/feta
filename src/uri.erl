@@ -657,10 +657,13 @@ match_segments([A | Atail], [B | Btail], Acc) ->
 match_segments([], [], Acc) ->
    Acc;
 
+match_segments([], undefined, Acc) ->
+   Acc;
+match_segments(undefined, [], Acc) ->
+   Acc;
 match_segments(undefined, undefined, Acc) ->
    Acc;
-
-match_segments(_, _, _) ->
+match_segments(A, B, _) ->
    false.
 
 %%   
