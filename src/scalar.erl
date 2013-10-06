@@ -34,6 +34,7 @@
    f/1, %% double in normal (fixed-point) notation  
    s/1, %% null-terminated string (binary in Erlang)
    c/1, %% char (character list)
+   a/1, %% existing atom 
    decode/1 
 ]).
 
@@ -98,6 +99,20 @@ atol(X) -> atom_to_list(X).
 itol(X) -> integer_to_list(X).
 ftol(X) -> lists:flatten(io_lib:format("~.9f", [X])).
 
+%%
+%% existing atom
+-spec(a/1 :: (any()) -> atom()).
+
+a(X) when is_binary(X)  -> btoa(X);
+a(X) when is_atom(X)    -> X;
+a(X) when is_list(X)    -> ltoa(X);
+a(X) when is_integer(X) -> itoa(X);
+a(X) when is_float(X)   -> ftoa(X).
+
+btoa(X) -> binary_to_existing_atom(X, utf8).
+ltoa(X) -> list_to_existing_atom(X).
+itoa(X) -> ltoa(itol(X)).
+ftoa(X) -> ltoa(ftol(X)).
 
 
 %%
