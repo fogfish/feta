@@ -30,11 +30,12 @@
 -module(scalar).
 
 -export([
-   i/1, %% int as a signed decimal number.
-   f/1, %% double in normal (fixed-point) notation  
-   s/1, %% null-terminated string (binary in Erlang)
-   c/1, %% char (character list)
-   a/1, %% existing atom 
+   i/1,     %% int as a signed decimal number.
+   f/1,     %% double in normal (fixed-point) notation  
+   s/1,     %% null-terminated string (binary in Erlang)
+   c/1,     %% char (character list)
+   a/1,     %% existing atom
+   atom/1,  %% new atom 
    decode/1 
 ]).
 
@@ -114,6 +115,20 @@ ltoa(X) -> list_to_existing_atom(X).
 itoa(X) -> ltoa(itol(X)).
 ftoa(X) -> ltoa(ftol(X)).
 
+%%
+%% new atom
+-spec(atom/1 :: (any()) -> atom()).
+
+atom(X) when is_binary(X)  -> btoaa(X);
+atom(X) when is_atom(X)    -> X;
+atom(X) when is_list(X)    -> ltoaa(X);
+atom(X) when is_integer(X) -> itoaa(X);
+atom(X) when is_float(X)   -> ftoaa(X).
+
+btoaa(X) -> binary_to_atom(X, utf8).
+ltoaa(X) -> list_to_atom(X).
+itoaa(X) -> ltoaa(itol(X)).
+ftoaa(X) -> ltoaa(ftol(X)).
 
 %%
 %% decode scalar type
