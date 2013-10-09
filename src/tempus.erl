@@ -13,15 +13,29 @@
 %%   See the License for the specific language governing permissions and
 %%   limitations under the License.
 %%
-%%   @description
-%%      time utility
+%% @description
+%%   time utility
+%%
+%% @todo
+%%   * optimize arithmetic
+%%
 -module(tempus).
 
 -export([
+   u/1,
+   m/1,
+   s/1,
+
+   add/2,
+   seq/3,
+   discrete/2,
+
    % events
    event/2,
    reset/2,
    cancel/1,
+
+
 
    % time convert utility
    now/0, 
@@ -36,11 +50,100 @@
    inc/1, 
    inc/2, 
    dec/1, 
-   dec/2 
+   dec/2
+
 ]).
+
+-type(t() :: {integer(), integer(), integer()}).
+
 
 %% number of sec to Unix Epoch
 -define(UNX_EPOCH, 62167219200).
+-define(BASE,          1000000).
+-define(BASE3,            1000).
+
+
+%%
+%% time <=> microseconds
+-spec(u/1 :: (t() | integer()) -> integer() | t()).
+
+u({A2, A1, A0}) ->
+   A0 + ?BASE * (A1 + ?BASE * A2);
+u(X) 
+ when is_integer(X) ->
+   A0  = X rem ?BASE,
+   Y   = X div ?BASE,
+   A1  = Y rem ?BASE,
+   A2  = Y div ?BASE,
+   {A2, A1, A0}. 
+
+%%
+%% time <=> milliseconds
+-spec(m/1 :: (t() | integer()) -> integer() | t()).
+
+m({A2, A1, A0}) ->
+   A0 div ?BASE3 + ?BASE3 * (A1 + ?BASE * A2);
+m(X)
+ when is_integer(X) ->
+   A0  = X rem ?BASE3,
+   Y   = X div ?BASE3,
+   A1  = Y rem ?BASE,
+   A2  = Y div ?BASE,
+   {A2, A1, A0 * ?BASE3}. 
+
+
+%%
+%% time <=> seconds
+-spec(s/1 :: (t() | integer()) -> integer() | t()).
+
+s({A2, A1, _A0}) ->
+   A1 + ?BASE * A2;
+s(X)
+ when is_integer(X) ->
+   A0 = 0,
+   A1  = X rem ?BASE,
+   A2  = X div ?BASE,
+   {A2, A1, A0}. 
+
+%%
+%% add time
+-spec(add/2 :: (t(), t()) -> t()).
+
+add({A2, A1, A0}, {B2, B1, B0}) ->
+   T0 = B0 + A0,
+   C0 = T0 rem ?BASE,
+   Q0 = T0 div ?BASE,
+
+   T1 = B1 + A1 + Q0,
+   C1 = T1 rem ?BASE,
+   Q1 = T1 div ?BASE,
+
+   C2 = (B2 + A2 + Q1) rem ?BASE,
+   {C2, C1, C0}.  
+
+
+%%
+%% returns a sequence of times values on interval A, B
+-spec(seq/3 :: (t(), t(), t()) -> [t()]).
+
+seq(A, B, C)
+ when A =< B ->
+   [A | seq(add(A, C), B, C)];
+seq(_, _, _) ->
+   []. 
+
+%%
+%% calculate discrete time 
+-spec(discrete/2 :: (t(), t()) -> t()).
+
+discrete({_, _, _}=X, {_, _, _}=T) ->
+   discrete(u(X), u(T));
+discrete(X, T) ->
+   u((X div T) * T).
+
+
+
+
 
 
 %%%------------------------------------------------------------------
@@ -89,6 +192,26 @@ cancel({evt, T, Timer}) ->
 cancel(T) ->
    T.
 
+%%%------------------------------------------------------------------
+%%%
+%%% convert
+%%%
+%%%------------------------------------------------------------------
+
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% direct time
+%%%
+%%%------------------------------------------------------------------
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% inverse time
+%%%
+%%%------------------------------------------------------------------
 
 
 
@@ -206,3 +329,12 @@ dec({Msec, Sec, Usec}, T)
       X ->
          {Msec - 1, 1000000 + X, Usec}
    end.
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% private
+%%%
+%%%------------------------------------------------------------------
+
+
