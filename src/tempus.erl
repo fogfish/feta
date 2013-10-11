@@ -27,6 +27,7 @@
    s/1,
 
    add/2,
+   sub/2,
    seq/3,
    discrete/2,
 
@@ -122,6 +123,22 @@ add({A2, A1, A0}, {B2, B1, B0}) ->
 
    C2 = (B2 + A2 + Q1) rem ?BASE,
    {C2, C1, C0}.  
+
+%%
+%% subtract time
+-spec(sub/2 :: (t(), t()) -> t()).
+
+sub({A2, A1, A0}, {B2, B1, B0}) ->
+   {C0, Q0} = sub(A0, B0, A1),
+   {C1, Q1} = sub(Q0, B1, A2),
+   {C2,  0} = sub(Q1, B2,  0),
+   {C2, C1, C0}.
+  
+sub(X, Y, A)
+ when X >=Y ->
+   {X - Y, A};
+sub(X, Y, A) ->
+   {?BASE + X - Y, A - 1}.
 
 
 %%
