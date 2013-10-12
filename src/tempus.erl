@@ -22,9 +22,14 @@
 -module(tempus).
 
 -export([
+   %% time to micro-, milli-, second
    u/1,
    m/1,
    s/1,
+
+   %% micro-, milli-, second to time
+   t/2,
+
 
    add/2,
    sub/2,
@@ -67,46 +72,50 @@
 
 
 %%
-%% time <=> microseconds
--spec(u/1 :: (t() | integer()) -> integer() | t()).
+%% time to micro-, milli-, second
+-spec(u/1 :: (t()) -> integer()).
+-spec(m/1 :: (t()) -> integer()).
+-spec(s/1 :: (t()) -> integer()).
+
 
 u({A2, A1, A0}) ->
-   A0 + ?BASE * (A1 + ?BASE * A2);
-u(X) 
+   A0 + ?BASE * (A1 + ?BASE * A2).
+
+m({A2, A1, A0}) ->
+   A0 div ?BASE3 + ?BASE3 * (A1 + ?BASE * A2).
+
+s({A2, A1, _A0}) ->
+   A1 + ?BASE * A2.
+
+%%
+%%
+-spec(t/2 :: (u | m |s, integer()) -> t()).
+
+t(u, X) 
  when is_integer(X) ->
    A0  = X rem ?BASE,
    Y   = X div ?BASE,
    A1  = Y rem ?BASE,
    A2  = Y div ?BASE,
-   {A2, A1, A0}. 
+   {A2, A1, A0};
 
-%%
-%% time <=> milliseconds
--spec(m/1 :: (t() | integer()) -> integer() | t()).
-
-m({A2, A1, A0}) ->
-   A0 div ?BASE3 + ?BASE3 * (A1 + ?BASE * A2);
-m(X)
+t(m, X)
  when is_integer(X) ->
    A0  = X rem ?BASE3,
    Y   = X div ?BASE3,
    A1  = Y rem ?BASE,
    A2  = Y div ?BASE,
-   {A2, A1, A0 * ?BASE3}. 
+   {A2, A1, A0 * ?BASE3};
 
-
-%%
-%% time <=> seconds
--spec(s/1 :: (t() | integer()) -> integer() | t()).
-
-s({A2, A1, _A0}) ->
-   A1 + ?BASE * A2;
-s(X)
+t(s, X)
  when is_integer(X) ->
    A0 = 0,
    A1  = X rem ?BASE,
    A2  = X div ?BASE,
    {A2, A1, A0}. 
+
+
+
 
 %%
 %% add time
