@@ -79,13 +79,23 @@
 
 
 u({A2, A1, A0}) ->
-   A0 + ?BASE * (A1 + ?BASE * A2).
+   A0 + ?BASE * (A1 + ?BASE * A2);
+u(X) 
+ when is_integer(X) ->
+   X.
 
 m({A2, A1, A0}) ->
-   A0 div ?BASE3 + ?BASE3 * (A1 + ?BASE * A2).
+   A0 div ?BASE3 + ?BASE3 * (A1 + ?BASE * A2);
+m(X)
+ when is_integer(X) ->
+   X.
 
 s({A2, A1, _A0}) ->
-   A1 + ?BASE * A2.
+   A1 + ?BASE * A2;
+s(X)
+ when is_integer(X) ->
+   X.
+
 
 %%
 %%
