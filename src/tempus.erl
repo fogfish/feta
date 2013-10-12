@@ -98,7 +98,7 @@ s(X)
 
 
 %%
-%%
+%% micro-, milli-, second to time
 -spec(t/2 :: (u | m |s, integer()) -> t()).
 
 t(u, X) 
@@ -124,39 +124,46 @@ t(s, X)
    A2  = X div ?BASE,
    {A2, A1, A0}. 
 
-
-
-
 %%
 %% add time
 -spec(add/2 :: (t(), t()) -> t()).
 
-add({A2, A1, A0}, {B2, B1, B0}) ->
-   T0 = B0 + A0,
-   C0 = T0 rem ?BASE,
-   Q0 = T0 div ?BASE,
+add({_, _, _}=A, {_, _, _}=B) ->
+   add_time(A, B);
+add(A, B)
+ when is_integer(A), is_integer(B) ->
+   A + B.
 
-   T1 = B1 + A1 + Q0,
-   C1 = T1 rem ?BASE,
-   Q1 = T1 div ?BASE,
-
-   C2 = (B2 + A2 + Q1) rem ?BASE,
-   {C2, C1, C0}.  
+add_time({A2, A1, A0}, {B2, B1, B0}) ->
+   {C0, Q0} = add_time(A0, B0,  0),
+   {C1, Q1} = add_time(A1, B1, Q0),
+   {C2,  _} = add_time(A2, B2, Q1),
+   {C2, C1, C0}.
+  
+add_time(X, Y, Q) ->
+   T = X + Y + Q,
+   {T rem ?BASE, T div ?BASE}.   
 
 %%
 %% subtract time
 -spec(sub/2 :: (t(), t()) -> t()).
 
-sub({A2, A1, A0}, {B2, B1, B0}) ->
-   {C0, Q0} = sub(A0, B0, A1),
-   {C1, Q1} = sub(Q0, B1, A2),
-   {C2,  0} = sub(Q1, B2,  0),
+sub({_, _, _}=A, {_, _, _}=B) ->
+   sub_time(A, B);
+sub(A, B)
+ when is_integer(A), is_integer(B) ->
+   A - B.
+
+sub_time({A2, A1, A0}, {B2, B1, B0}) ->
+   {C0, Q0} = sub_time(A0, B0, A1),
+   {C1, Q1} = sub_time(Q0, B1, A2),
+   {C2,  0} = sub_time(Q1, B2,  0),
    {C2, C1, C0}.
   
-sub(X, Y, A)
+sub_time(X, Y, A)
  when X >=Y ->
    {X - Y, A};
-sub(X, Y, A) ->
+sub_time(X, Y, A) ->
    {?BASE + X - Y, A - 1}.
 
 
@@ -181,15 +188,13 @@ seq_time(_, _, _) ->
 -spec(discrete/2 :: (t(), t()) -> t()).
 
 discrete({_, _, _}=X, {_, _, _}=Y) ->
-   discrete(u(X), u(Y));
+   A = u(X),
+   B = u(Y),
+   u((A div B) * B);
 
 discrete(X, Y)
  when is_integer(X), is_integer(Y) ->
-   u((X div Y) * Y).
-
-
-
-
+   (X div Y) * Y.
 
 
 %%%------------------------------------------------------------------
