@@ -145,20 +145,28 @@ sub(X, Y, A) ->
 %% returns a sequence of times values on interval A, B
 -spec(seq/3 :: (t(), t(), t()) -> [t()]).
 
+seq({_, _, _}=A, {_, _, _}=B, {_, _, _}=C) ->
+   seq_time(A, B, C);
 seq(A, B, C)
+ when is_integer(A), is_integer(B), is_integer(C) ->
+   lists:seq(A, B, C).
+
+seq_time(A, B, C)   
  when A =< B ->
-   [A | seq(add(A, C), B, C)];
-seq(_, _, _) ->
+   [A | seq_time(add(A, C), B, C)];
+seq_time(_, _, _) ->
    []. 
 
 %%
 %% calculate discrete time 
 -spec(discrete/2 :: (t(), t()) -> t()).
 
-discrete({_, _, _}=X, {_, _, _}=T) ->
-   discrete(u(X), u(T));
-discrete(X, T) ->
-   u((X div T) * T).
+discrete({_, _, _}=X, {_, _, _}=Y) ->
+   discrete(u(X), u(Y));
+
+discrete(X, Y)
+ when is_integer(X), is_integer(Y) ->
+   u((X div Y) * Y).
 
 
 
