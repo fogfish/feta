@@ -456,6 +456,8 @@ c(Uri) ->
 
 %%
 %%
+s(undefined)   ->
+   undefined;
 s({uri, S, U}) ->
    Schema= schema_to_s(S), 
    User  = toss(U#uval.user,   $@),
