@@ -24,32 +24,40 @@
 
 %%
 -record(bloom, {
+   e    :: float(),    %% positive false probability 
    n    :: integer(),  %% capacity
-   p    :: float(),    %% positive false probability 
-   m    :: integer(),  %% number of bits
    k    :: integer(),  %% number of hashes
+   m    :: integer(),  %% number of bits
+   base :: integer(),  %% cell base
    size :: integer(),  %% number of elements
    bits :: any()       %% bit set 
 }).
 
 -define(HASH1(X), erlang:phash2([X], 1 bsl 32)).
 -define(HASH2(X), erlang:phash2({X}, 1 bsl 32)).
--define(W,  1024).    %% word size
+-define(W,  1024).     %% word size
 
 %%
-%% create new bloom filter
+%% create new standard bloom filter
+%%   N - estimated size of the set
+%%   E - desired false positive probability
 -spec(new/2 :: (integer(), float()) -> #bloom{}).
 
-new(N, P) ->
-   M = bits(N, P),
-   K = hash(N, M),
+new(N, E) ->
+   %% estimate optimal number of hash functions (fill rate 50%)
+   K = 1 + erlang:trunc(log2(1 / E)),
+   %% estimate false probability
+   P = math:pow(E, 1 / K),
+   %% estimate filter size in bits
+   M = 1 - erlang:round(N * math:log(P) / math:pow(math:log(2), 2)),
    #bloom{
+      e    = E,
       n    = N,
-      p    = P,
-      m    = M,
       k    = K,
+      m    = M,
+      base = M div ?W,
       size = 0,
-      bits = array:new(M div ?W , [{default, 0}])
+      bits = array:new(1 + erlang:trunc(M / ?W), [{default, 0}])
    }.
 
 %%
@@ -57,11 +65,7 @@ new(N, P) ->
 -spec(insert/2 :: (any(), #bloom{}) -> #bloom{}).
 
 insert(Element, B) ->
-   Bits = set_bits(
-      [ X rem B#bloom.m || X <- hashes(Element, B#bloom.k) ],
-      B#bloom.m div ?W,
-      B#bloom.bits
-   ),
+   Bits = set_bits(hashes(Element, B#bloom.k, B#bloom.m), B#bloom.base, B#bloom.bits),
    B#bloom{
       size = B#bloom.size + 1,
       bits = Bits
@@ -72,11 +76,7 @@ insert(Element, B) ->
 -spec(lookup/2 :: (any(), #bloom{}) -> true | false).
 
 lookup(Element, B) ->
-   has_bits(
-      [ X rem B#bloom.m || X <- hashes(Element, B#bloom.k) ],
-      B#bloom.m div ?W,
-      B#bloom.bits
-   ).
+   has_bits(hashes(Element, B#bloom.k, B#bloom.m), B#bloom.base, B#bloom.bits).
 
 %%%------------------------------------------------------------------
 %%%
@@ -84,31 +84,25 @@ lookup(Element, B) ->
 %%%
 %%%------------------------------------------------------------------
 
-%% calculates number of bits for optimal number of hash functions
-%% the bits value is normalized to closets word.
-bits(N, P) ->
-   Bits = - erlang:round(N * math:log(P) / math:pow(math:log(2), 2)),
-   ((Bits div ?W) + 1) * ?W.  
+%%
+%%
+log2(X) -> math:log(X) / math:log(2). 
+
 
 %%
-%% calculates optimal number of hash functions
-hash(N, M) ->
-   erlang:round((M / N) * math:log(2)).
-
-%%
-%% calculates K hashes
-hashes(E, K) ->
-   hashes(?HASH1(E), ?HASH2(E), K).
-
-hashes(_, _, 0) ->
+%% calculates K hashes 
+%% @todo: check reference for K hash construction
+hashes(E, K, M) ->
+   hashes(?HASH1(E), ?HASH2(E), K, M).
+hashes(_, _, 0, _) ->
    [];
-hashes(A, B, K) ->
-   [A band (K * B) | hashes(A, B, K - 1)].
+hashes(A, B, K, M) ->
+   [ (A band (K * B)) rem M | hashes(A, B, K - 1, M)].
 
 %%
 %%
 set_bits([H | T], Base, Bits) ->
-   I = H div Base,
+   I = H rem array:size(Bits),
    V0 = array:get(I, Bits),
    V1 = V0 bor (1 bsl (H rem Base)),
    set_bits(T, Base, array:set(I, V1, Bits));
@@ -119,7 +113,7 @@ set_bits([], _, Bits) ->
 %%
 %%
 has_bits([H | T], Base, Bits) ->
-   I = H div Base,
+   I = H rem array:size(Bits),
    V = array:get(I, Bits),
    case V band (1 bsl (H rem Base)) of
       0 -> false;
