@@ -30,6 +30,8 @@
    %% micro-, milli-, second to time
    t/2,
 
+   %% diff
+   diff/1,
 
    add/2,
    sub/2,
@@ -123,6 +125,14 @@ t(s, X)
    A1  = X rem ?BASE,
    A2  = X div ?BASE,
    {A2, A1, A0}. 
+
+%%
+%% calculate time difference, return micro- seconds
+-spec(diff/1 :: (t()) -> integer()).
+
+diff(T) ->
+   sub(os:timestamp(), T).
+
 
 %%
 %% add time
