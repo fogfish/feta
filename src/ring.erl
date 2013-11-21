@@ -18,6 +18,7 @@
 %%    Each node claims a single partition only
 %%
 %% @todo
+%%    * list is not optimal if number of shard is large, use gb_tree
 %%    * predecessors with filter fun
 -module(ring).
 
