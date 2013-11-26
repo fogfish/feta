@@ -17,7 +17,7 @@
 %%   scalar data type encode / decode utility 
 %%
 %%      built-in data type abbreviation: 
-%%         a - atom, b - binary, l - list, i - integer, f - float
+%%         a - atom, s - binary, c - list, i - integer, f - float
 %%      
 %%      extended data type set
 %%         s - string (binary)
@@ -115,6 +115,7 @@ ltoa(X) -> list_to_existing_atom(X).
 itoa(X) -> ltoa(itol(X)).
 ftoa(X) -> ltoa(ftol(X)).
 
+
 %%
 %% new atom
 -spec(atom/1 :: (any()) -> atom()).
@@ -129,6 +130,9 @@ btoaa(X) -> binary_to_atom(X, utf8).
 ltoaa(X) -> list_to_atom(X).
 itoaa(X) -> ltoaa(itol(X)).
 ftoaa(X) -> ltoaa(ftol(X)).
+
+
+
 
 %%
 %% decode scalar type
