@@ -470,7 +470,10 @@ s({uri, S, U}) ->
       User =/= <<>> orelse Port =/= <<>> orelse Host =/= <<>> -> 
          <<"//">>;
       true -> 
-         <<>>
+         case Path of
+            <<$/, _/binary>> -> <<"//">>;
+            _ -> <<>>
+         end
    end,
    <<Schema/binary, Auth/binary, User/binary, Host/binary, Port/binary, Path/binary, Query/binary, Anchor/binary>>.
 
