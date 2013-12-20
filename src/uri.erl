@@ -468,11 +468,19 @@ s({uri, S, U}) ->
    Anchor= tosp(U#uval.anchor, $#),
    Auth  = if
       User =/= <<>> orelse Port =/= <<>> orelse Host =/= <<>> -> 
-         <<"//">>;
+         case S of
+            undefined -> <<>>;
+            _         -> <<"//">>
+         end;
       true -> 
          case Path of
-            <<$/, _/binary>> -> <<"//">>;
-            _ -> <<>>
+            <<$/, _/binary>> ->
+               case S of
+                  undefined -> <<>>;
+                  _         -> <<"//">>
+               end;
+            _ -> 
+               <<>>
          end
    end,
    <<Schema/binary, Auth/binary, User/binary, Host/binary, Port/binary, Path/binary, Query/binary, Anchor/binary>>.
