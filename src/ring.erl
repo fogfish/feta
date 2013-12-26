@@ -329,6 +329,10 @@ chord_claim(A, B, New, Old, Shards) ->
 
 %%
 token_join(Addr, Node, #ring{node=0, master=Master, shards=Shards}=R) ->
+   %% @todo:
+   %%  * initial node allocation shall claim only it own tokens
+   %%  * predecessor / successors shall take into account undefined node and return previous value
+   %%  * list is not optimal for high number of shards > 100
    R#ring{
       node   = 1,
       master = [{Addr, Node} | Master],
@@ -361,11 +365,13 @@ token_leave(Node, #ring{node=S, shard=Q, master=Master, shards=Shards}=R) ->
       [] ->
          reset(R);
       T  ->
+         % @todo: this is a quick fix to eliminate ring failure
+         {_, Fallback} = hd(T),
          L = lists:map(
             fun
             ({X, N}) when N =:= Node ->
                case lists:keyfind(X, 1, T) of
-                  false   -> throw(unknown_node);
+                  false   -> {X, Fallback};
                   {_, NN} -> {X, NN}
                end;
             ({_, _}=X) -> X
