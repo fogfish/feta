@@ -204,7 +204,7 @@ port(Val, {uri, S, U}) ->
    {uri, S, U#uval{port = scalar:i(Val)}}.
 
 %%
-%%
+%% authority   = [ userinfo "@" ] host [ ":" port ]
 -spec(authority/1 :: (uri()) -> {binary(), integer()}).
 -spec(authority/2 :: ({any(), any()} | any(), uri()) -> uri()).
 
@@ -214,14 +214,15 @@ authority({uri, _, _}=Uri) ->
 authority(undefined, Uri) ->
    uri:port(undefined, uri:host(undefined, Uri));
 
+authority({Host, undefined}, {uri, _, _}=Uri) ->
+   uri:host(Host, Uri);
 authority({Host, Port}, {uri, _, _}=Uri) ->
    uri:port(scalar:i(Port), uri:host(Host, Uri));
 
 authority(Val, {uri, _, _}=Uri) ->
-   case binary:split(scalar:s(Val), <<$:>>) of
-      [Host, Port] -> uri:authority({Host, Port}, Uri);
-      [Host]       -> uri:host(Host, Uri)
-   end.
+   {User, Auth} = prefix(scalar:s(Val),  <<$@>>),
+   {Host, Port} = suffix(Auth, <<$:>>),
+   uri:userinfo(User, uri:authority({Host, Port}, Uri)).
 
 %%
 %%
