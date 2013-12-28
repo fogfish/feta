@@ -197,12 +197,17 @@ seq_time(_, _, _) ->
 %% calculate discrete time 
 -spec(discrete/2 :: (t(), t()) -> t()).
 
-discrete({A1, B1, C1}, {0, 0,  C2}) ->
-   {A1, B1, (C1 div C2) * C2};
-discrete({A1, B1,  _}, {0, B2,  0}) ->
-   {A1, (B1 div B2) * B2, 0};
-discrete({A1, B1, C1}, {0, B2, C2}) ->
-   {A1, (B1 div B2) * B2, (C1 div C2) * C2};
+discrete({_, _, _}=X, {_, _, _}=Y) ->
+   A = u(X),
+   B = u(Y),
+   t(u, (A div B) * B);
+
+discrete({_, _, _}=X, Y)
+ when is_integer(Y) ->
+   A = u(X),
+   B = Y * 1000000,
+   t(u, (A div B) * B);
+
 discrete(X, Y)
  when is_integer(X), is_integer(Y) ->
    (X div Y) * Y.
