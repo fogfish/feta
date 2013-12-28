@@ -183,6 +183,9 @@ sub_time(X, Y, A) ->
 
 seq({_, _, _}=A, {_, _, _}=B, {_, _, _}=C) ->
    seq_time(A, B, C);
+seq({_, _, _}=A, {_, _, _}=B, C)
+ when is_integer(C) ->
+   seq_time(A, B, t(s, C));   
 seq(A, B, C)
  when is_integer(A), is_integer(B), is_integer(C) ->
    lists:seq(A, B, C).
