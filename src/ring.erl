@@ -187,10 +187,10 @@ shards(#ring{shards=Shards}) ->
 
 shards(Fun, #ring{shards=Shards})
  when is_function(Fun) ->
-   [X || {X, N} <- Shards, Fun(N)];
+   [{X, N} || {X, N} <- Shards, Fun(N)];
 
 shards(Node, #ring{shards=Shards}) ->
-   [X || {X, N} <- Shards, N =:= Node].
+   [{X, N} || {X, N} <- Shards, N =:= Node].
 
 %%
 %% lookup shard and node pair at address
