@@ -29,6 +29,7 @@
 
    %% micro-, milli-, second to time
    t/2,
+   i/2,
 
    %% diff
    diff/1,
@@ -125,6 +126,17 @@ t(s, X)
    A1  = X rem ?BASE,
    A2  = X div ?BASE,
    {A2, A1, A0}. 
+
+%%
+%% time to micro-, milli-, second to integer
+-spec(i/2 :: (u | m |s, t()) -> integer()).
+
+i(u, X) ->
+   u(X);
+i(m, X) ->
+   m(X);
+i(s, X) ->
+   s(X).
 
 %%
 %% calculate time difference, return micro- seconds
