@@ -35,6 +35,7 @@
    diff/1,
    add/2,
    sub/2,
+   mul/2,
    seq/3,
    discrete/2,
 
@@ -102,6 +103,7 @@ s(X)
 %%
 %% micro-, milli-, second to time
 -spec(t/2 :: (u | m |s, integer()) -> t()).
+
 
 t(u, X) 
  when is_integer(X) ->
@@ -175,6 +177,25 @@ sub_time(X, Y, A)
 sub_time(X, Y, A) ->
    {?BASE + X - Y, A - 1}.
 
+%%
+%% multiply time
+-spec(mul/2 :: (t(), t()) -> t()).
+
+mul({_, _, _}=A, {_, _, _}=B) ->
+   mul_time(A, B);
+mul(A, B)
+ when is_integer(A), is_integer(B) ->
+   A * B.
+
+mul_time({A2, A1, A0}, {B2, B1, B0}) ->
+   {C0, Q0} = mul_time(A0, B0,  0),
+   {C1, Q1} = mul_time(A1, B1, Q0),
+   {C2,  _} = mul_time(A2, B2, Q1),
+   {C2, C1, C0}.
+
+mul_time(X, Y, Q) ->
+   T = (X + Q) * Y,
+   {T rem ?BASE, T div ?BASE}.  
 
 %%
 %% returns a sequence of times values on interval A, B
