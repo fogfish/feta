@@ -194,7 +194,7 @@ mul_time({A2, A1, A0}, {B2, B1, B0}) ->
    {C2, C1, C0}.
 
 mul_time(X, Y, Q) ->
-   T = (X + Q) * Y,
+   T = (X * Y) + Q,
    {T rem ?BASE, T div ?BASE}.  
 
 %%
