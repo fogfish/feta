@@ -2,6 +2,8 @@
 %%   XPath-like query for Erlang terms
 -module(epath).
 
+%% @todo map function over list
+
 -export([
    q/2
 ]).
