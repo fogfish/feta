@@ -3,7 +3,8 @@
 -module(fs).
 
 -export([
-   foreach/2
+   foreach/2,
+   fold/3
 ]).
 
 -type(path() :: list()).
@@ -29,4 +30,27 @@ foreach(Fun, Path) ->
          end;
       false -> 
          Fun(Path)
+   end.
+
+%%
+%%
+-spec(fold/3 :: (function(), any(), path()) -> ok).
+
+fold(Fun, Acc, Path) ->
+   case filelib:is_dir(Path) of
+      true  ->
+         case file:list_dir(Path) of
+            {ok, List} ->
+               lists:foldl(
+                  fun(X, Acc0) ->
+                     fold(Fun, Acc0, X)
+                  end,
+                  Acc,
+                  [filename:join(Path, X) || X <- List]
+               );
+            {error, _Reason} ->
+               Acc
+         end;
+      false -> 
+         Fun(Path, Acc)
    end.
