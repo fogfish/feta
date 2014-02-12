@@ -52,5 +52,10 @@ fold(Fun, Acc, Path) ->
                Acc
          end;
       false -> 
-         Fun(Path, Acc)
+         case filelib:is_file(Path) of
+            true ->
+               Fun(Path, Acc);
+            false->
+               Acc
+         end
    end.

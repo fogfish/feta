@@ -1,7 +1,11 @@
 -module(applib).
 
 -export([
-   boot/2, is_running/1, is_loaded/1, phase/1
+   boot/2
+  ,deps/1
+  ,is_running/1
+  ,is_loaded/1
+  ,phase/1
 ]).
 
 %%
@@ -56,6 +60,34 @@ setenv([X|_]=File)
 setenv(Opts)
  when is_list(Opts) ->
    lists:foreach(fun setenv/1, Opts).
+
+%%
+%% list application dependencies
+deps(App)
+ when is_atom(App) ->
+   tl(deps(App, [])). % skip itself
+
+deps(App, Acc) ->
+   maybe_deps(code:where_is_file(atom_to_list(App) ++ ".app"), App, Acc).
+
+maybe_deps(non_existing, App, _Acc0) ->
+   exit({no_app, App});
+maybe_deps(AppFile, App, Acc0) ->
+   {ok, [{application, _, List}]} = file:consult(AppFile), 
+   Apps = proplists:get_value(applications, List, []),
+   Acc1 = lists:foldl(
+      fun(X, Acc) ->
+         case lists:member(X, Acc) of
+            true  -> Acc;
+            false -> deps(X, Acc)
+         end
+      end,
+      Acc0,
+      Apps
+   ),
+   [App | Acc1].
+
+
 
 %%
 %% check application info
