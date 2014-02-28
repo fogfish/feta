@@ -185,6 +185,9 @@ host({turi, _, {Host, _, _}}) ->
 
 host(undefined, {uri, S, U}) ->
    {uri, S, U#uval{host = undefined}};
+host(Val, {uri, _, _}=Uri)
+ when is_tuple(Val) ->
+   host(inet_parse:ntoa(Val), Uri);
 host(Val, {uri, S, U}) ->
    {uri, S, U#uval{host = scalar:s(Val)}}.
 
