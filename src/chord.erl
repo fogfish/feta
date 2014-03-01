@@ -193,7 +193,7 @@ leave(Addr, #ring{}=R)
      ,shards = orddict:erase(Addr, R#ring.shards)
    };
 leave(Node, #ring{}=R) ->
-   Shards = orddict:filter(fun(_, N) -> N =:= Node end, R#ring.shards),
+   Shards = orddict:filter(fun(_, N) -> N =/= Node end, R#ring.shards),
    R#ring{
       size   = orddict:size(Shards)
      ,shards = Shards 
