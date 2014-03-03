@@ -20,6 +20,7 @@
 -export([
    new/0
   ,new/1
+  ,size/1
   ,address/2
   ,whereis/2
   ,successors/2
@@ -71,6 +72,12 @@ init([{_, _} | Opts], R) ->
 init([], R) ->
    empty(R).
 
+%%
+%% number of nodes
+-spec(size/1 :: (#ring{}) -> integer()).
+
+size(#ring{}=R) ->
+   R#ring.size.
 
 %%
 %% maps key into address on the ring
