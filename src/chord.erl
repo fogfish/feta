@@ -22,6 +22,7 @@
   ,new/1
   ,size/1
   ,address/2
+  ,address/1
   ,whereis/2
   ,successors/2
   ,predecessors/2
@@ -98,6 +99,14 @@ address(X, #ring{hash=Hash, m=M}) ->
    <<Addr:M, _/bits>> = crypto:hash(Hash, term_to_binary(X)),
    Addr.
 
+%%
+%% return complete set of ring addresses
+-spec(address/1 :: (#ring{}) -> integer()).
+
+address(#ring{}=R) ->
+   Top = ringtop(R),
+   Inc = Top div R#ring.shard,
+   lists:seq(Inc - 1, Top - 1, Inc).
 
 %%
 %% lookup shard and node pair at address
@@ -224,7 +233,6 @@ empty(#ring{}=R) ->
       size   = 0
      ,shards = orddict:new()
    }.
-
 
 
 
