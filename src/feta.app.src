@@ -2,19 +2,13 @@
    [
       {description, "feta: fogfish erlang toolbox archive"},
       {vsn,         "0.6.0"},
-      {modules,     [
-         uri,
-         csv,
-         hash,
-         bits,
-         format,
-         parser
-      ]},
+      {modules,     []},
       {registered,  []},
       {applications,[
          kernel,
          stdlib
       ]},
+      {mod, {feta_app, []}},      
       {env, []}
    ]
 }.  
