@@ -53,6 +53,7 @@
    path/2,
    segments/1,
    segments/2,
+   join/2,
    q/1,
    q/2,
    q/3,
@@ -272,6 +273,20 @@ segments(Val, Uri)
 segments(Val, Uri)
  when is_tuple(Val) ->
    uri:segments(tuple_to_list(Val), Uri).
+
+%%
+%% join path segment(s)
+-spec(join/2 :: ([any()], uri()) -> uri()).
+
+join(Join, {uri, _, _}=Uri)
+ when is_list(Join) ->
+   X = iolist_to_binary([[$/, scalar:s(X)] || X <- Join]),
+   case uri:path(Uri) of
+      undefined -> 
+         uri:path(X, Uri);
+      Path      ->
+         uri:path(<<Path/binary, X/binary>>, Uri)
+   end.
 
 %%
 %%
@@ -680,7 +695,7 @@ match_segments(undefined, [], Acc) ->
    Acc;
 match_segments(undefined, undefined, Acc) ->
    Acc;
-match_segments(A, B, _) ->
+match_segments(_A, _B, _) ->
    false.
 
 %%   
