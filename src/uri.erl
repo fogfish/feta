@@ -84,7 +84,7 @@
 -export_type([uri/0]).
 
 %% 
--type(uri()    :: {uri, schema(), any()}).
+-type(uri()    :: {uri | urn, schema(), any()}).
 -type(schema() :: atom() | [atom()]).
 
 %% internal uri structures
@@ -107,7 +107,9 @@
 
 %% query operation
 -define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$>>>, <<$<>>, <<$=>>]).
-
+-define(is_uri(X),  (X =:= uri orelse X =:= urn orelse X =:= turi)).
+-define(is_url(X),  (X =:= uri orelse X =:= turi)).
+-define(is_urn(X),   X =:= urn).
 %%
 %% parses URI into tuple, fails with badarg if invalid URI
 -spec(new/0 :: () -> uri()).
@@ -118,8 +120,17 @@ new() ->
 
 new(Uri)
  when is_binary(Uri) ->
-   {Schema, UVal} = parse_uri(Uri),
-   {uri, Schema, UVal};
+   case parse_uri(Uri) of
+      {urn, UVal} ->
+         case binary:split(UVal#uval.path, <<$:>>) of
+            [Schema, Path] ->
+               {urn, schema_to_uri(Schema), Path};
+            [Path] ->
+               {urn, undefined, Path}
+         end;
+      {Schema, UVal} ->
+         {uri, Schema, UVal}
+   end;
 
 new(Uri)
  when is_list(Uri) ->
@@ -143,13 +154,12 @@ new({uri, _, _} = Uri) ->
 -spec(schema/1 :: (uri()) -> schema()).
 -spec(schema/2 :: (schema(), uri()) -> uri()).
 
-schema({uri, S, _}) ->
-   S;
-schema({turi, S, _}) ->
+schema({Uri, S, _})
+ when ?is_uri(Uri) ->
    S.
 
-schema(Val, {uri, _, U})
- when is_atom(Val) orelse is_list(Val) ->
+schema(Val, {Uri, _, U})
+ when ?is_uri(Uri), (is_atom(Val) orelse is_list(Val)) ->
    {uri, Val, U}.
 
 %%
@@ -157,62 +167,58 @@ schema(Val, {uri, _, U})
 -spec(userinfo/1 :: (uri()) -> {binary(), binary()} | binary()).
 -spec(userinfo/2 :: ({any(), any()} | any(), uri()) -> uri()).
 
-userinfo({uri, _, #uval{user=undefined}}) ->
+userinfo({Uri, _, #uval{user=undefined}}) ->
    undefined;
-userinfo({uri, _, U}) ->
+userinfo({Uri, _, #uval{}=U}) ->
    case binary:split(U#uval.user, <<$:>>) of
       [User, Pass] -> {unescape(User), unescape(Pass)};
       [Info]       -> unescape(Info)
    end.
 
-userinfo(undefined, {uri, S, U}) ->
-   {uri, S, U#uval{user = undefined}};
-userinfo({User0, Pass0}, {uri, S, U}) ->
+userinfo(undefined, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{user = undefined}};
+userinfo({User0, Pass0}, {Uri, S, #uval{}=U}) ->
    User = escape(scalar:s(User0)),
    Pass = escape(scalar:s(Pass0)),
-   {uri, S, U#uval{user = <<User/binary, $:, Pass/binary>>}};
-userinfo(Val, {uri, S, U}) ->
-   {uri, S, U#uval{user = escape(scalar:s(Val))}}.
+   {Uri, S, U#uval{user = <<User/binary, $:, Pass/binary>>}};
+userinfo(Val, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{user = escape(scalar:s(Val))}}.
 
 %%
 %%
 -spec(host/1 :: (uri()) -> binary()).
 -spec(host/2 :: (any(), uri()) -> uri()).
 
-host({uri,  _, U}) ->
-   U#uval.host;
-host({turi, _, {Host, _, _}}) ->
-   Host.
+host({Uri,  _, #uval{}=U}) ->
+   U#uval.host.
 
-host(undefined, {uri, S, U}) ->
-   {uri, S, U#uval{host = undefined}};
-host(Val, {uri, _, _}=Uri)
+host(undefined, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{host = undefined}};
+host(Val, {_, _, _}=Uri)
  when is_tuple(Val) ->
    host(inet_parse:ntoa(Val), Uri);
-host(Val, {uri, S, U}) ->
-   {uri, S, U#uval{host = scalar:s(Val)}}.
+host(Val, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{host = scalar:s(Val)}}.
 
 %%
 %%
 -spec(port/1 :: (uri()) -> integer()).
 -spec(port/2 :: (any(), uri()) -> uri()).
 
-port({uri, S, U}) ->
-   schema_to_port(S, U#uval.port);
-port({turi, _, {_, Port, _}}) ->
-   Port.
+port({Uri, S, #uval{}=U}) ->
+   schema_to_port(S, U#uval.port).
 
-port(undefined, {uri, S, U}) ->
-   {uri, S, U#uval{port = undefined}};
-port(Val, {uri, S, U}) ->
-   {uri, S, U#uval{port = scalar:i(Val)}}.
+port(undefined, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{port = undefined}};
+port(Val, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{port = scalar:i(Val)}}.
 
 %%
 %% authority   = [ userinfo "@" ] host [ ":" port ]
 -spec(authority/1 :: (uri()) -> {binary(), integer()}).
 -spec(authority/2 :: ({any(), any()} | any(), uri()) -> uri()).
 
-authority({uri, _, _}=Uri) ->
+authority({_, _, _}=Uri) ->
    {uri:host(Uri), uri:port(Uri)}.
 
 authority(undefined, Uri) ->
@@ -233,34 +239,46 @@ authority(Val, {uri, _, _}=Uri) ->
 -spec(path/1 :: (uri()) -> binary()).
 -spec(path/2 :: (any(), uri()) -> uri()).
 
-path({uri, _, #uval{path=undefined}}) ->
+path({_, _, #uval{path=undefined}}) ->
    undefined;
-path({uri, _, U}) ->
+path({_, _, #uval{}=U}) ->
    case unescape(U#uval.path) of
       <<>> -> <<$/>>;
       V    -> V
-   end.
+   end;
+path({urn, _, Path}) ->
+   Path.
 
-path(undefined, {uri, S, U}) ->
-   {uri, S, U#uval{path = undefined}};   
-path(Val, {uri, S, U}) ->
+
+path(undefined, {Uri, S, #uval{}=U}) ->
+   {Uri, S, U#uval{path = undefined}};   
+path(Val, {Uri, S, #uval{}=U}) ->
    % @todo: do we need to escape path
-   {uri, S, U#uval{path = scalar:s(Val)}}.
+   {Uri, S, U#uval{path = scalar:s(Val)}};
+path(Val, {urn, S, _}) ->
+   {urn, S, scalar:s(Val)}.
 
 %%
 %%
 -spec(segments/1 :: (uri()) -> [binary()]).
 -spec(segments/2 :: (any(), uri()) -> uri()).
 
-segments({uri, _, #uval{path=undefined}}) ->
+segments({_, _, #uval{path=undefined}}) ->
    undefined;
-segments({uri, _, U}) ->
-   case binary:split(U#uval.path, <<"/">>, [global, trim]) of
+segments({_, _, #uval{}=U}) ->
+   binary_to_segments(U#uval.path);
+segments({turi, _, {_, _, Segments}}) ->
+   Segments;
+segments({urn, _, undefined}) ->
+   undefined;
+segments({urn, _, Path}) ->
+   binary_to_segments(Path).
+
+binary_to_segments(Path) ->
+   case binary:split(Path, <<"/">>, [global, trim]) of
       []         -> [];
       [_ | Segs] -> Segs
-   end;
-segments({turi, _, {_, _, Segments}}) ->
-   Segments.
+   end.
 
 
 segments(undefined, Uri) ->
@@ -278,8 +296,8 @@ segments(Val, Uri)
 %% join path segment(s)
 -spec(join/2 :: ([any()], uri()) -> uri()).
 
-join(Join, {uri, _, _}=Uri)
- when is_list(Join) ->
+join(Join, {T, _, _}=Uri)
+ when ?is_uri(T), is_list(Join) ->
    X = iolist_to_binary([[$/, scalar:s(X)] || X <- Join]),
    case uri:path(Uri) of
       undefined -> 
@@ -502,7 +520,11 @@ s({uri, S, U}) ->
                <<>>
          end
    end,
-   <<Schema/binary, Auth/binary, User/binary, Host/binary, Port/binary, Path/binary, Query/binary, Anchor/binary>>.
+   <<Schema/binary, Auth/binary, User/binary, Host/binary, Port/binary, Path/binary, Query/binary, Anchor/binary>>;
+s({urn, S, P}) ->
+  Schema= schema_to_s(S), 
+  Path  = tos(P),
+  <<"urn:", Schema/binary, Path/binary>>.
 
 %% to string
 tos(undefined) ->
