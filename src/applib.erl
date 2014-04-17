@@ -17,56 +17,26 @@
 -spec(boot/2 :: (atom(), list()) -> ok).
 
 boot(App, Config) ->
-   setenv(Config),
-   boot(App).
-
-boot(kernel) -> ok;
-boot(stdlib) -> ok;
-boot(App) when is_atom(App) ->
-   maybe_boot(code:where_is_file(atom_to_list(App) ++ ".app"), App).
-
-maybe_boot(non_existing, App) ->
-   throw({no_app, App});
-maybe_boot(AppFile, App) ->
-   case lists:keyfind(App, 1, application:which_applications()) of
-      false ->
-         {ok, [{application, _, List}]} = file:consult(AppFile), 
-         Apps = proplists:get_value(applications, List, []),
-         lists:foreach(
-            fun(X) -> 
-               ok = case boot(X) of
-                  {error, {already_started, X}} -> ok;
-                  Ret -> Ret
-               end
-            end,
-            Apps
-         ),
-         application:start(App);
-      _ ->
-         {error, {already_started, App}}
-   end.
-
-%% configure application from file
-setenv({App, Opts})
- when is_list(Opts) ->
-   lists:foreach(
-      fun({K, V}) -> application:set_env(App, K, V) end,
-      Opts
-   );
-setenv([X|_]=File)
- when is_number(X) ->
-   {ok, [Cfg]} = file:consult(File),
-   lists:foreach(fun setenv/1, Cfg);
-setenv(Opts)
- when is_list(Opts) ->
-   lists:foreach(fun setenv/1, Opts).
+   %% the boot is composed of three phases
+   %%  1. load all dependencies (setup default app environment)
+   %%  2. Overlay default environment
+   %%  3. start all applications
+   ok = ensure_loaded(App),
+   ok = setenv(Config),
+   ensure_started(App).
 
 %%
 %% list application dependencies
+-spec(deps/1 :: (atom()) -> [atom()]).
+
 deps(App)
  when is_atom(App) ->
-   tl(deps(App, [])). % skip itself
+   deps(App, []). 
 
+deps(kernel, Acc) ->
+   Acc;
+deps(stdlib, Acc) ->
+   Acc;
 deps(App, Acc) ->
    maybe_deps(code:where_is_file(atom_to_list(App) ++ ".app"), App, Acc).
 
@@ -85,12 +55,10 @@ maybe_deps(AppFile, App, Acc0) ->
       Acc0,
       Apps
    ),
-   [App | Acc1].
-
-
+   Acc1 ++ [App].
 
 %%
-%% check application info
+%% check application status
 -spec(phase/1 :: (atom()) -> running | loaded | undefined).
 
 phase(App)
@@ -104,11 +72,13 @@ maybe_running(false, App) ->
 
 maybe_loaded(true,  _) ->
    loaded;
-maybe_loaded(false, App) ->
+maybe_loaded(false, _App) ->
    undefined.
 
 %%
 %% check if application is running
+-spec(is_running/1 :: (atom()) -> true | false).
+
 is_running(App)
  when is_atom(App) ->
    case lists:keyfind(App, 1, application:which_applications()) of
@@ -118,6 +88,8 @@ is_running(App)
 
 %%
 %% check if application is loaded
+-spec(is_loaded/1 :: (atom()) -> true | false).
+
 is_loaded(App)
  when is_atom(App) ->
    case lists:keyfind(App, 1, application:loaded_applications()) of
@@ -125,3 +97,55 @@ is_loaded(App)
       _     -> true
    end.
 
+%%%------------------------------------------------------------------
+%%%
+%%% private
+%%%
+%%%------------------------------------------------------------------
+
+%%
+%% configure application from file
+setenv({App, Opts})
+ when is_list(Opts) ->
+   lists:foreach(
+      fun({K, V}) -> application:set_env(App, K, V) end,
+      Opts
+   );
+setenv([X|_]=File)
+ when is_number(X) ->
+   {ok, [Cfg]} = file:consult(File),
+   lists:foreach(fun setenv/1, Cfg);
+setenv(Opts)
+ when is_list(Opts) ->
+   lists:foreach(fun setenv/1, Opts).
+
+
+%%
+%% load all application dependencies
+ensure_loaded(App) ->
+   lists:foldl(fun ensure_loaded/2, ok, deps(App)).
+
+ensure_loaded(App, ok) ->
+   case application:load(App) of
+      {error, {already_loaded, _}} -> 
+         ok;
+      Any ->
+         Any
+   end;
+ensure_loaded(_,Error) ->
+   Error.
+
+%%
+%% boot all application dependencies
+ensure_started(App) ->
+   lists:foldl(fun ensure_started/2, ok, deps(App)).
+
+ensure_started(App, ok) ->
+   case application:start(App) of
+      {error, {already_started, _}} -> 
+         ok;
+      Any ->
+         Any
+   end;
+ensure_started(_,Error) ->
+   Error.
