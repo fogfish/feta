@@ -816,7 +816,13 @@ parse_uri(Uri0) ->
       _                  -> {undefined, Heir}
    end,
    {User, Host0} = prefix(Auth0, <<$@>>),
-   {Host,  Pbin} = suffix(Host0, <<$:>>),
+   {Host,  Pbin} = case Host0 of
+      <<$[, IP6/binary>> ->
+         [Addr, <<$:, Pport/binary>>] = binary:split(IP6, <<$]>>),
+         {Addr, Pport};
+      _ ->
+         suffix(Host0, <<$:>>)
+   end,
    % parse port
    Port = case Pbin of
       undefined ->  undefined;
