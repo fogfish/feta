@@ -41,6 +41,7 @@
 
    % events
    event/2,
+   timer/2,
    reset/2,
    cancel/1,
 
@@ -63,10 +64,11 @@
    % dec/2
 
 ]).
--export_type([t/0]).
+-export_type([t/0, timer/0]).
 
 %% time stamp
--type(t() :: {integer(), integer(), integer()}).
+-type(t()     :: {integer(), integer(), integer()}).
+-type(timer() :: {timer | event, integer(), reference()}).
 
 
 %% number of sec to Unix Epoch
@@ -244,28 +246,45 @@ discrete(X, Y)
 
 %%
 %% raise event after timeout
--spec(event/2 :: (integer() | any(), any()) -> any()).
+-spec(event/2 :: (integer() | timer(), any()) -> any()).
 
-event(T, Evt)
+event(T, Msg)
  when is_integer(T) ->
-   {evt, T, erlang:send_after(T, self(), Evt)};
+   {event, T, erlang:send_after(T, self(), Msg)};
 
-event({evt, _, _}=T, _Evt) ->
+event({event, _, _}=T, _Msg) ->
    T;
 
-event(T, _) ->
+event(T, _Msg) ->
+   T.
+
+%%
+%% define timer
+-spec(timer/2 :: (integer() | timer(), any()) -> timer()).
+
+timer(T, Msg)
+ when is_integer(T) ->
+   {timer, T, erlang:send_after(T, self(), Msg)};
+
+timer({timer, _, _}=T, Msg) ->
+   reset(T, Msg);
+
+timer(T, _Msg) ->
    T.
 
 %%
 %% reset event's timeout 
--spec(reset/2 :: (integer() | any(), any()) -> any()).
+-spec(reset/2 :: (integer() | timer(), any()) -> any()).
 
 reset(T, Msg)
  when is_integer(T) ->
    tempus:event(T, Msg);
 
-reset(T, Evt) ->
-   tempus:event(tempus:cancel(T), Evt).
+reset({event, _, _}=T, Msg) ->
+   tempus:event(tempus:cancel(T), Msg);
+
+reset({timer, _, _}=T, Msg) ->
+   tempus:timer(tempus:cancel(T), Msg).
 
 %%
 %% cancel event
@@ -275,7 +294,11 @@ cancel(T)
  when is_integer(T) ->
    T;
 
-cancel({evt, T, Timer}) ->
+cancel({event, T, Timer}) ->
+   erlang:cancel_timer(Timer),
+   T;
+
+cancel({timer, T, Timer}) ->
    erlang:cancel_timer(Timer),
    T;
 
@@ -410,8 +433,8 @@ decode([$%, $S | Tail], Val, {{_Y,_M,_D}=Date, {H,N,_S}}) ->
 %% %F  Same as "%Y-%m-%d" (commonly used in database datestamps) Example: 2009-02-05 for February 5, 2009
 %% %s  Unix Epoch Time timestamp (same as the time() function) Example: 305815200 for September 10, 1979 08:40:00 AM
 %% %x  Preferred date representation based on locale, without the time Example: 02/05/09 for February 5, 2009
-decode([$%, $s | Tail], Val, _Acc) ->
-   {Sec, Rest} = case string:chr(Val, 32) of
+decode([$%, $s | _Tail], Val, _Acc) ->
+   {Sec, _Rest} = case string:chr(Val, 32) of
       0 -> {Val, []};
       I -> lists:split(I - 1, Val)
    end,
