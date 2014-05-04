@@ -48,21 +48,6 @@
    % time convert utility
    decode/1
   ,decode/2
-
-   % now/0, 
-   % sec/0, 
-   % sec/1, 
-   % milli/0, 
-   % milli/1, 
-   % micro/0, 
-   % micro/1,
-
-   % % time transform utility
-   % inc/1, 
-   % inc/2, 
-   % dec/1, 
-   % dec/2
-
 ]).
 -export_type([t/0, timer/0]).
 
@@ -128,7 +113,10 @@ t(s, X)
    A0 = 0,
    A1  = X rem ?BASE,
    A2  = X div ?BASE,
-   {A2, A1, A0}. 
+   {A2, A1, A0};
+
+t(_, {_,_,_}=X) ->
+   X.
 
 %%
 %% calculate time difference, return micro- seconds
@@ -143,6 +131,9 @@ diff(T) ->
 
 add({_, _, _}=A, {_, _, _}=B) ->
    add_time(A, B);
+add(A, B)
+ when is_integer(A) orelse is_integer(B) ->
+   add_time(tempus:t(s, A), tempus:t(s, B));
 add(A, B)
  when is_integer(A), is_integer(B) ->
    A + B.
@@ -163,6 +154,9 @@ add_time(X, Y, Q) ->
 
 sub({_, _, _}=A, {_, _, _}=B) ->
    sub_time(A, B);
+sub(A, B)
+ when is_integer(A) orelse is_integer(B) ->
+   sub_time(tempus:t(s, A), tempus:t(s, B));
 sub(A, B)
  when is_integer(A), is_integer(B) ->
    A - B.
@@ -185,6 +179,9 @@ sub_time(X, Y, A) ->
 
 mul({_, _, _}=A, {_, _, _}=B) ->
    mul_time(A, B);
+mul(A, B)
+ when is_integer(A) orelse is_integer(B) ->
+   mul_time(tempus:t(s, A), tempus:t(s, B));
 mul(A, B)
  when is_integer(A), is_integer(B) ->
    A * B.
