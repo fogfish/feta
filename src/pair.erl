@@ -20,8 +20,12 @@
 -export([
    lookup/2
   ,lookup/3
-  ,check/3
-  ,maybe/3
+  ,rtop/2
+  ,rtoa/2
+  ,rtos/2
+  ,ptor/3
+  ,ator/3
+  ,stor/3
 ]).
 
 -type(key()   :: atom() | binary()).
@@ -70,24 +74,38 @@ lookup_term(Key, X)
    end.
 
 %%
-%% check that value is defined
--spec(check/3 :: (val() | function(), key(), pairs()) -> ok).
+%% record to pairs, build list of key / val pairs from record.
+%% pair:rtol(record_info(fields, a), #a{}).
+-spec(rtop/2 :: ([atom()], tuple()) -> pairs()).
+-spec(rtoa/2 :: ([atom()], tuple()) -> pairs()).
+-spec(rtos/2 :: ([atom()], tuple()) -> pairs()).
 
-check(Val, Key, Pairs) ->
-   assert(Val, Key, lookup(Key, Pairs)).
+rtop(Struct, X) -> 
+   rtoa(Struct, X).
+
+rtoa(Struct, X)
+ when is_tuple(X) ->
+   lists:zip(Struct, tl(tuple_to_list(X))).
+
+rtos(Struct, X)
+ when is_tuple(X) ->
+   lists:zip([scalar:s(X) || X <- Struct], tl(tuple_to_list(X))).
+
 
 %%
-%% check that value is defined
--spec(maybe/3 :: (val() | function(), key(), pairs()) -> ok).
+%% pair to record, build record from pairs of record
+%% pair:ptor(a, record_info(fields, a), [...]).
+-spec(ptor/3 :: (atom(), [atom()], pairs()) -> tuple()).
+-spec(stor/3 :: (atom(), [atom()], pairs()) -> tuple()).
+-spec(ator/3 :: (atom(), [atom()], pairs()) -> tuple()).
 
-maybe(Val, Key, Pairs) ->
-   assert(Val, Key, lookup(Key, undefined, Pairs)).
+ptor(Type, Struct, X) ->
+   ator(Type, Struct, X).
 
-%%
-%%
-assert(_Val, _Key, undefined) ->
-   ok;
-assert(Val, _Key, Val) ->
-   ok;
-assert(Val, Key, _Any) ->
-   exit({badarg, Key, Val}).
+ator(Type, Struct, X) ->
+   list_to_tuple([Type |  [lookup(Y, undefined, X) || Y <- Struct]]).
+
+stor(Type, Struct, X) ->
+   list_to_tuple([Type |  [lookup(scalar:s(Y),  X) || Y <- Struct]]).
+
+
