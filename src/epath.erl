@@ -1,8 +1,9 @@
 %% @description
 %%   XPath-like query for Erlang terms
+%%
+%% @deprecated
+%%   use pairs:lookup/2 pairs:get/2
 -module(epath).
-
-%% @todo map function over list
 
 -export([
    q/2
