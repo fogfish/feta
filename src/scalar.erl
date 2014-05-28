@@ -132,8 +132,6 @@ itoaa(X) -> ltoaa(itol(X)).
 ftoaa(X) -> ltoaa(ftol(X)).
 
 
-
-
 %%
 %% decode scalar type
 -spec(decode/1 :: (list() | binary()) -> any()).
@@ -170,6 +168,7 @@ decode(X)
       {match, [_, _, _, _]} -> ltof(X);
       nomatch -> X
    end.
+
 
 
 %%%------------------------------------------------------------------

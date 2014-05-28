@@ -565,10 +565,8 @@ schema_to_s([H|T]) ->
 %% escape
 escape(X) when is_binary(X) ->
    escape(X, <<>>);
-escape(X) when is_float(X)  ->
-   escape(list_to_binary(format:decimal(X)));
 escape(X) ->
-   escape(list_to_binary(format:scalar(X))).
+   escape(scalar:s(X)).
 
 
 escape(<<H:8, Bin/binary>>, Acc) when H >= $a, H =< $z ->
