@@ -43,19 +43,24 @@ deps(App, Acc) ->
 maybe_deps(non_existing, App, _Acc0) ->
    exit({no_app, App});
 maybe_deps(AppFile, App, Acc0) ->
-   {ok, [{application, _, List}]} = file:consult(AppFile), 
-   Apps = proplists:get_value(applications, List, []),
-   Acc1 = lists:foldl(
-      fun(X, Acc) ->
-         case lists:member(X, Acc) of
-            true  -> Acc;
-            false -> deps(X, Acc)
-         end
-      end,
-      Acc0,
-      Apps
-   ),
-   Acc1 ++ [App].
+   case file:consult(AppFile) of
+      {ok, [{application, _, List}]} ->
+         Apps = proplists:get_value(applications, List, []),
+         Acc1 = lists:foldl(
+            fun(X, Acc) ->
+               case lists:member(X, Acc) of
+                  true  -> Acc;
+                  false -> deps(X, Acc)
+               end
+            end,
+            Acc0,
+            Apps
+         ),
+         Acc1 ++ [App];
+      _ ->
+         error_logger:error_msg("unable to load appfile ~s~n", [AppFile]),
+         Acc0
+   end.
 
 %%
 %% check application status
