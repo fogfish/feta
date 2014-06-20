@@ -219,7 +219,12 @@ port(Val, {Uri, S, #uval{}=U}) ->
 -spec(authority/2 :: ({any(), any()} | any(), uri()) -> uri()).
 
 authority({_, _, _}=Uri) ->
-   {uri:host(Uri), uri:port(Uri)}.
+   case {uri:host(Uri), uri:port(Uri)} of
+      {undefined, undefined} ->
+         undefined;
+      Value ->
+         Value
+   end.
 
 authority(undefined, Uri) ->
    uri:port(undefined, uri:host(undefined, Uri));
