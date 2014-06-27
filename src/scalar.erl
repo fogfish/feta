@@ -21,7 +21,9 @@
 %%      
 %%      extended data type set
 %%         s - string (binary)
+%%        ls - long string (synonym unicode:characters_to_binary + error handling)
 %%         c - character list
+%%        lc - long characters (synonym unicode:characters_to_list + error handling)
 %%
 %% @todo
 %%   x(...) - unsigned int as a hexadecimal number.
@@ -33,7 +35,9 @@
    i/1,     %% int as a signed decimal number.
    f/1,     %% double in normal (fixed-point) notation  
    s/1,     %% null-terminated string (binary in Erlang)
+   ls/1,    %% null-terminated Unicode string 
    c/1,     %% char (character list)
+   lc/1,    %% Unicode characters
    a/1,     %% existing atom
    atom/1,  %% new atom 
    decode/1 
@@ -86,6 +90,27 @@ itos(X) -> ltos(itol(X)).
 ftos(X) -> ltos(io_lib:format("~.9f", [X])).
 
 %%
+%% scalar to Unicode string
+-spec(ls/1 :: (any()) -> binary()).
+
+ls(X) when is_binary(X)  -> utob(X);
+ls(X) when is_atom(X)    -> atos(X);
+ls(X) when is_list(X)    -> utob(X);
+ls(X) when is_integer(X) -> itos(X);
+ls(X) when is_float(X)   -> ftos(X).
+
+utob(X) ->
+   case unicode:characters_to_binary(X) of
+      {incomplete, _} ->
+         exit(rought);
+      {error,      _} ->
+         exit(badarg);
+      Y ->
+         Y
+   end.
+
+
+%%
 %% character list
 -spec(c/1 :: (any()) -> list()).
 
@@ -99,6 +124,27 @@ btol(X) -> binary_to_list(X).
 atol(X) -> atom_to_list(X).
 itol(X) -> integer_to_list(X).
 ftol(X) -> lists:flatten(io_lib:format("~.9f", [X])).
+
+%%
+%% scalar to Unicode characters
+-spec(lc/1 :: (any()) -> list()).
+
+lc(X) when is_binary(X)  -> utoc(X);
+lc(X) when is_atom(X)    -> atol(X);
+lc(X) when is_list(X)    -> utoc(X);
+lc(X) when is_integer(X) -> itol(X);
+lc(X) when is_float(X)   -> ftol(X).
+
+utoc(X) ->
+   case unicode:characters_to_list(X) of
+      {incomplete, _} ->
+         exit(rought);
+      {error,      _} ->
+         exit(badarg);
+      Y ->
+         Y
+   end.
+
 
 %%
 %% existing atom
