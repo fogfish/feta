@@ -118,7 +118,12 @@ t(s, X)
    {A2, A1, A0};
 
 t(_, {_,_,_}=X) ->
-   X.
+   X;
+
+t(s, {{_, _, _}, {_, _, _}}=Date) ->
+   Sec = calendar:datetime_to_gregorian_seconds(Date) - ?UNX_EPOCH,
+   {Sec div ?BASE, Sec rem ?BASE, 0}.
+
 
 %%
 %% calculate time difference, return micro- seconds
