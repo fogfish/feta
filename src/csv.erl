@@ -37,10 +37,13 @@
 -module(csv).
 -author('Dmitry Kolesnikov <dmkolesnikov@gmail.com>').
 -export([
-   encode/1, decode/1,
-
-   parse/3, split/4, pparse/4, stream/1,
-   infile/3
+   encode/1
+  ,decode/1
+  ,parse/3
+  ,split/4
+  ,pparse/4
+  ,stream/1
+  ,infile/3
 ]).
 
 %%
@@ -296,14 +299,27 @@ chunk(In, _) ->
 
 
 %%
-%% lazy evaluation of csv stream
-stream(Series) ->
-   lazy:unfold(
-      fun(In, #csv{data=Pfx}=S) -> 
-         sparse(<<Pfx/binary, In/binary>>, 0, 0, S#csv{data = <<>>}) 
+%% streams parser 
+%% @todo: use stream:new instead of stream:scan
+-spec(stream/1 :: (list() | any()) -> any()).
+
+stream(File)
+ when is_list(File) ->
+   {ok, FD} = file:open(File, [raw, binary, read]),
+   stream(csv_file_stream(FD));
+
+stream({s, _, _}=Stream) ->
+   stream:map(
+      fun(X) ->
+         X#csv.file
       end,
-      #csv{},
-      Series
+      stream:scan(
+         fun(In, #csv{data=Pfx}=State) ->
+            sparse(<<Pfx/binary, In/binary>>, 0, 0, State#csv{data = <<>>}) 
+         end,
+         #csv{},
+         Stream
+      )
    ).
 
 sparse(In, Pos, Len, #csv{line=Line, file=File}=S)
@@ -320,11 +336,22 @@ sparse(In, Pos, Len, #csv{line=Line, file=File}=S)
          sparse(In, Pos, Len + 1, S)
    end;
 
-sparse(In, Pos, _Len, #csv{file=File}=S) ->
+sparse(In, Pos, _Len, #csv{file=File}=State) ->
    <<_:Pos/binary, Sfx/binary>> = In,
-   {lists:reverse(File), S#csv{data=Sfx, file=[]}}.
+   State#csv{data=Sfx, file=lists:reverse(File)}.
 
+csv_file_stream(FD)
+ when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
+   case file:read(FD, 16 * 1024) of
+      {ok, Chunk} ->
+         stream:new(Chunk, fun() -> csv_file_stream(FD) end);
+      eof  ->
+         file:close(FD),
+         {};
+      {error, Reason} ->
+         file:close(FD),
+         throw(Reason)
+   end.
 
-   
    
 
