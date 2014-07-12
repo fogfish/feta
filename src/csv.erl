@@ -314,8 +314,11 @@ stream({s, _, _}=Stream) ->
          X#csv.file
       end,
       stream:scan(
-         fun(In, #csv{data=Pfx}=State) ->
-            sparse(<<Pfx/binary, In/binary>>, 0, 0, State#csv{data = <<>>}) 
+         fun
+         (eof, #csv{}=State) ->
+            State#csv{file=[]};   
+         (In, #csv{data=Pfx}=State) ->
+            sparse(<<Pfx/binary, In/binary>>, 0, 0, State#csv{data = <<>>, file = []}) 
          end,
          #csv{},
          Stream
@@ -347,7 +350,7 @@ csv_file_stream(FD)
          stream:new(Chunk, fun() -> csv_file_stream(FD) end);
       eof  ->
          file:close(FD),
-         {};
+         stream:new(eof);
       {error, Reason} ->
          file:close(FD),
          throw(Reason)
