@@ -53,12 +53,6 @@
 -define(LINE_BY,   $\n).
 -define(IO_CHUNK,  1024*1024).
 
--record(csv, {
-   data  = <<>>  :: binary(),  %% partially parsed data
-   line  = []    :: list(),    %% partially parsed line
-   file  = []    :: list()     %% parsed line's accumulator
-}). 
-
 %%
 %%
 encode(Data)
@@ -309,66 +303,46 @@ stream(File)
    stream(csv_file_stream(FD));
 
 stream({s, _, _}=Stream) ->
-   stream(stream:head(Stream), <<>>, stream:tail(Stream)).
+   stream(stream:head(Stream), <<>>, stream:tail(Stream), []).
 
-stream(Chunk, Prefix, Stream)
+stream(Chunk, Prefix, Stream, Line0)
  when is_binary(Chunk) ->
-   {Tail, List} = csv_parse(<<Prefix/binary, Chunk/binary>>, 0, 0, [[]]),
-   stream(List, Tail, Stream);
+   {Tail, Line, List} = csv_parse(<<Prefix/binary, Chunk/binary>>, 0, 0, Line0, []),
+   stream(List, Tail, Stream, Line);
 
-stream([[<<>>] | Tail], Prefix, Stream) ->
-   stream(stream:head(Stream), Prefix, stream:tail(Stream));
+stream([[<<>>] | Tail], Prefix, Stream, Line) ->
+   stream(Tail, Prefix, Stream, Line);
 
-stream([[] | Tail], Prefix, Stream) ->
-   stream(stream:head(Stream), Prefix, stream:tail(Stream));
+stream([[] | Tail], Prefix, Stream, Line) ->
+   stream(Tail, Prefix, Stream, Line);
 
-stream([Head | Tail], Prefix, Stream) ->
-   stream:new(lists:reverse(Head), fun() -> stream(Tail, Prefix, Stream) end);
+stream([Head | Tail], Prefix, Stream, Line) ->
+   stream:new(lists:reverse(Head), fun() -> stream(Tail, Prefix, Stream, Line) end);
 
-stream([], Prefix, Stream) ->
-   stream(stream:head(Stream), Prefix, stream:tail(Stream));
+stream([], Prefix, Stream, Line) ->
+   stream(stream:head(Stream), Prefix, stream:tail(Stream), Line);
 
-stream(eof, _, _) ->
+stream(eof, _, _, _) ->
    stream:new().
 
 
-
-
-
-
-   % stream:map(
-   %    fun(X) ->
-   %       X#csv.file
-   %    end,
-   %    stream:scan(
-   %       fun
-   %       (eof, #csv{}=State) ->
-   %          State#csv{file=[]};   
-   %       (In, #csv{data=Pfx}=State) ->
-   %          sparse(<<Pfx/binary, In/binary>>, 0, 0, State#csv{data = <<>>, file = []}) 
-   %       end,
-   %       #csv{},
-   %       Stream
-   %    )
-   % ).
-
-csv_parse(In, Pos, Len, [Head | Tail]=Acc)
+csv_parse(In, Pos, Len, Line, Chunk)
  when Pos + Len < size(In) ->
    case In of
       % end of field
       <<_:Pos/binary, Tkn:Len/binary, ?FIELD_BY,  _/binary>> ->
-         csv_parse(In, Pos + Len + 1, 0, [ [Tkn | Head] | Tail ]);
+         csv_parse(In, Pos + Len + 1, 0, [Tkn | Line], Chunk);
       % end of line
       <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY, _/binary>>  ->
-         csv_parse(In, Pos + Len + 1, 0, [ [], [Tkn | Head] | Tail]);
+         csv_parse(In, Pos + Len + 1, 0, [], [[Tkn | Line] | Chunk]);
       _ ->
          % no match increase token
-         csv_parse(In, Pos, Len + 1,  Acc)
+         csv_parse(In, Pos, Len + 1,  Line, Chunk)
    end;
 
-csv_parse(In, Pos, _Len, Acc) ->
+csv_parse(In, Pos, _Len, Line, Chunk) ->
    <<_:Pos/binary, Sfx/binary>> = In,
-   {binary:copy(Sfx), lists:reverse(Acc)}.
+   {binary:copy(Sfx), Line, lists:reverse(Chunk)}.
 
 csv_file_stream(FD)
  when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
