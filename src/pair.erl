@@ -20,6 +20,7 @@
 -export([
    lookup/2
   ,lookup/3
+  ,x/2
   ,rtop/2
   ,rtoa/2
   ,rtos/2
@@ -51,9 +52,9 @@ lookup(Key, Value) ->
 %% return default value if path do not exists
 -spec(lookup/3 :: ([key()], val(), pairs()) -> val()).
 
-lookup(Path, Default, Value) ->
+lookup(Path, Default, Pairs) ->
    try
-      lookup(Path, Value)
+      lookup(Path, Pairs)
    catch _:_ ->
       Default
    end.
@@ -74,6 +75,15 @@ lookup_term(Key, X)
    end.
 
 %%
+%% shortcut alias to lookup path
+-spec(x/2 :: ([key()], pairs()) -> val()).
+
+x(Path, Pairs) ->
+   lookup(Path, undefined, Pairs).
+
+
+
+%%
 %% record to pairs, build list of key / val pairs from record.
 %% pair:rtol(record_info(fields, a), #a{}).
 -spec(rtop/2 :: ([atom()], tuple()) -> pairs()).
@@ -89,7 +99,7 @@ rtoa(Struct, X)
 
 rtos(Struct, X)
  when is_tuple(X) ->
-   lists:zip([scalar:s(X) || X <- Struct], tl(tuple_to_list(X))).
+   lists:zip([scalar:s(Y) || Y <- Struct], tl(tuple_to_list(X))).
 
 
 %%
