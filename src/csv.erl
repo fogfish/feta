@@ -43,6 +43,7 @@
   ,split/4
   ,pparse/4
   ,stream/1
+  ,stream/2
   ,infile/3
 ]).
 
@@ -297,50 +298,54 @@ chunk(In, _) ->
 %% @todo: use stream:new instead of stream:scan
 -spec(stream/1 :: (list() | any()) -> any()).
 
-stream(File)
+stream(Stream) ->
+   stream(Stream, ?FIELD_BY).
+
+stream(File, FieldBy)
  when is_list(File) ->
    {ok, FD} = file:open(File, [raw, binary, read]),
-   stream(csv_file_stream(FD));
+   stream(csv_file_stream(FD), FieldBy);
 
-stream({s, _, _}=Stream) ->
-   stream(stream:head(Stream), <<>>, stream:tail(Stream), []).
+stream({s, _, _}=Stream, FieldBy) ->
+   stream(stream:head(Stream), FieldBy, <<>>, stream:tail(Stream), []).
 
-stream(Chunk, Prefix, Stream, Line0)
+
+stream(Chunk, FieldBy, Prefix, Stream, Line0)
  when is_binary(Chunk) ->
-   {Tail, Line, List} = csv_parse(<<Prefix/binary, Chunk/binary>>, 0, 0, Line0, []),
-   stream(List, Tail, Stream, Line);
+   {Tail, Line, List} = csv_parse(<<Prefix/binary, Chunk/binary>>, FieldBy, 0, 0, Line0, []),
+   stream(List, FieldBy, Tail, Stream, Line);
 
-stream([[<<>>] | Tail], Prefix, Stream, Line) ->
-   stream(Tail, Prefix, Stream, Line);
+stream([[<<>>] | Tail], FieldBy, Prefix, Stream, Line) ->
+   stream(Tail, FieldBy, Prefix, Stream, Line);
 
-stream([[] | Tail], Prefix, Stream, Line) ->
-   stream(Tail, Prefix, Stream, Line);
+stream([[] | Tail], FieldBy, Prefix, Stream, Line) ->
+   stream(Tail, FieldBy, Prefix, Stream, Line);
 
-stream([Head | Tail], Prefix, Stream, Line) ->
-   stream:new(lists:reverse(Head), fun() -> stream(Tail, Prefix, Stream, Line) end);
+stream([Head | Tail], FieldBy, Prefix, Stream, Line) ->
+   stream:new(lists:reverse(Head), fun() -> stream(Tail, FieldBy, Prefix, Stream, Line) end);
 
-stream([], Prefix, Stream, Line) ->
-   stream(stream:head(Stream), Prefix, stream:tail(Stream), Line);
+stream([], FieldBy, Prefix, Stream, Line) ->
+   stream(stream:head(Stream), FieldBy, Prefix, stream:tail(Stream), Line);
 
-stream(eof, _, _, _) ->
+stream(eof, _, _, _, _) ->
    stream:new().
 
 
-csv_parse(In, Pos, Len, Line, Chunk)
+csv_parse(In, FieldBy, Pos, Len, Line, Chunk)
  when Pos + Len < size(In) ->
    case In of
       % end of field
-      <<_:Pos/binary, Tkn:Len/binary, ?FIELD_BY,  _/binary>> ->
-         csv_parse(In, Pos + Len + 1, 0, [Tkn | Line], Chunk);
+      <<_:Pos/binary, Tkn:Len/binary, FieldBy,  _/binary>> ->
+         csv_parse(In, FieldBy, Pos + Len + 1, 0, [Tkn | Line], Chunk);
       % end of line
       <<_:Pos/binary, Tkn:Len/binary, ?LINE_BY, _/binary>>  ->
-         csv_parse(In, Pos + Len + 1, 0, [], [[Tkn | Line] | Chunk]);
+         csv_parse(In, FieldBy, Pos + Len + 1, 0, [], [[Tkn | Line] | Chunk]);
       _ ->
          % no match increase token
-         csv_parse(In, Pos, Len + 1,  Line, Chunk)
+         csv_parse(In, FieldBy, Pos, Len + 1,  Line, Chunk)
    end;
 
-csv_parse(In, Pos, _Len, Line, Chunk) ->
+csv_parse(In, _FieldBy, Pos, _Len, Line, Chunk) ->
    <<_:Pos/binary, Sfx/binary>> = In,
    {binary:copy(Sfx), Line, lists:reverse(Chunk)}.
 
