@@ -167,9 +167,9 @@ schema(Val, {Uri, _, U})
 -spec(userinfo/1 :: (uri()) -> {binary(), binary()} | binary()).
 -spec(userinfo/2 :: ({any(), any()} | any(), uri()) -> uri()).
 
-userinfo({Uri, _, #uval{user=undefined}}) ->
+userinfo({_, _, #uval{user=undefined}}) ->
    undefined;
-userinfo({Uri, _, #uval{}=U}) ->
+userinfo({_, _, #uval{}=U}) ->
    case binary:split(U#uval.user, <<$:>>) of
       [User, Pass] -> {unescape(User), unescape(Pass)};
       [Info]       -> unescape(Info)
@@ -189,7 +189,7 @@ userinfo(Val, {Uri, S, #uval{}=U}) ->
 -spec(host/1 :: (uri()) -> binary()).
 -spec(host/2 :: (any(), uri()) -> uri()).
 
-host({Uri,  _, #uval{}=U}) ->
+host({_,  _, #uval{}=U}) ->
    U#uval.host.
 
 host(undefined, {Uri, S, #uval{}=U}) ->
@@ -205,7 +205,7 @@ host(Val, {Uri, S, #uval{}=U}) ->
 -spec(port/1 :: (uri()) -> integer()).
 -spec(port/2 :: (any(), uri()) -> uri()).
 
-port({Uri, S, #uval{}=U}) ->
+port({_, S, #uval{}=U}) ->
    schema_to_port(S, U#uval.port).
 
 port(undefined, {Uri, S, #uval{}=U}) ->
@@ -270,20 +270,18 @@ path(Val, {urn, S, _}) ->
 
 segments({_, _, #uval{path=undefined}}) ->
    undefined;
-segments({_, _, #uval{}=U}) ->
-   binary_to_segments(U#uval.path);
-segments({turi, _, {_, _, Segments}}) ->
-   Segments;
-segments({urn, _, undefined}) ->
-   undefined;
-segments({urn, _, Path}) ->
-   binary_to_segments(Path).
-
-binary_to_segments(Path) ->
+segments({_, _, #uval{path=Path}}) ->
    case binary:split(Path, <<"/">>, [global, trim]) of
       []         -> [];
       [_ | Segs] -> Segs
-   end.
+   end;
+
+segments({turi, _, {_, _, Segments}}) ->
+   Segments;
+segments({urn,  _, undefined}) ->
+   undefined;
+segments({urn,  _, Path}) ->
+   binary:split(Path, [<<":">>, <<"/">>], [global, trim]).
 
 
 segments(undefined, Uri) ->
