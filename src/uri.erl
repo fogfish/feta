@@ -258,7 +258,7 @@ path({urn, _, Path}) ->
 path(undefined, {Uri, S, #uval{}=U}) ->
    {Uri, S, U#uval{path = undefined}};   
 path(Val, {Uri, S, #uval{}=U}) ->
-   % @todo: do we need to escape path
+   % @todo: do we need to escape path?
    {Uri, S, U#uval{path = scalar:s(Val)}};
 path(Val, {urn, S, _}) ->
    {urn, S, scalar:s(Val)}.
@@ -287,9 +287,14 @@ segments({urn,  _, Path}) ->
 segments(undefined, Uri) ->
    uri:path(undefined, Uri);
 
-segments(Val, Uri)
+segments(Val, {uri, _, _} = Uri)
  when is_list(Val) ->
    uri:path(iolist_to_binary([[$/, escape(X)] || X <- Val]), Uri);
+
+segments(Val, {urn, _, _} = Uri)
+ when is_list(Val) ->
+   uri:path(iolist_to_binary([hd(Val) | [[$:, escape(X)] || X <- tl(Val)]]), Uri);
+
 
 segments(Val, Uri)
  when is_tuple(Val) ->
