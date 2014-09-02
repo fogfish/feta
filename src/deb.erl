@@ -3,11 +3,19 @@
 -module(deb).
 
 -export([
-   mbox/1
+   uptime/0
+  ,mbox/1
   ,heap/1
   ,reductions/1
   ,supervised/1
 ]).
+
+%%
+%%
+uptime() ->
+   {UpTime, _}    = erlang:statistics(wall_clock),
+   {D, {H, M, S}} = calendar:seconds_to_daystime(UpTime div 1000),
+   lists:flatten(io_lib:format("~p days, ~p:~p:~p", [D,H,M,S])).
 
 
 %%

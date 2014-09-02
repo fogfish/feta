@@ -1,7 +1,8 @@
 -module(applib).
 
 -export([
-   boot/2
+   boot/1
+  ,boot/2
   ,deps/1
   ,is_running/1
   ,is_loaded/1
@@ -14,7 +15,11 @@
 %% -export([start/0]).
 %%
 %% start() -> applib:boot(?MODULE, "./rel/files/dev.config").
+-spec(boot/1 :: (atom()) -> ok).
 -spec(boot/2 :: (atom(), list()) -> ok).
+
+boot(App) ->
+   boot(App, []).
 
 boot(App, Config) ->
    %% the boot is composed of three phases
