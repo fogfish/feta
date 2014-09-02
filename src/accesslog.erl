@@ -50,6 +50,8 @@
 %% [x] %...U:          The URL path requested, not including any query string.
 %%     %...v:          The canonical ServerName of the server serving the request.
 %% [x] %...V:          The server name according to the UseCanonicalName setting.
+%%
+%%     %...-:          ignore any token 
 -module(accesslog).
 
 -export([
@@ -69,6 +71,12 @@
 decode(Log)
  when is_binary(Log) ->
    decode(?COMMON_LOG, Log).
+
+decode([$-|Tail], Log)
+ when is_binary(Log) ->
+   %% skip token
+   {_, Rest} = decode_token($-, Log),
+   decode(Tail, Rest);
 
 decode([Head|Tail], Log)
  when is_binary(Log) ->
@@ -121,7 +129,8 @@ pair($s, X) -> {status,   X};
 pair($t, X) -> {time,     X};
 pair($T, X) -> {latency,  X};
 pair($u, X) -> {user,     X};
-pair($v, X) -> {host,     X}.
+pair($v, X) -> {host,     X};
+pair(T,  X) -> {T,        X}.
 
 %%
 %% split binary, return head and tail
