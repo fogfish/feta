@@ -72,6 +72,7 @@
    c/1,
    unescape/1, 
    escape/1,
+   aton/1,
    % deprecated
    add/3,
    match/2
@@ -659,6 +660,22 @@ decode(<<H:8, Rest/binary>>, Acc) ->
    decode(Rest, <<Acc/binary, H>>);
 decode(<<>>, Acc) ->
    Acc.
+
+%%
+%% utility function to convert ip address to network
+-spec(aton/1 :: (any()) -> integer()).
+
+aton({A, B, C, D}) ->
+   (A bsl 24) bor (B bsl 16) bor (C bsl 8) bor D;
+aton(IP)
+ when is_list(IP) ->
+   {ok, Addr} = inet_parse:address(IP),
+   aton(Addr);
+aton(IP)
+ when is_binary(IP) ->
+   aton(scalar:c(IP)).
+
+
 
 %%%------------------------------------------------------------------
 %%%
