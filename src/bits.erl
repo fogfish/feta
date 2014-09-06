@@ -18,17 +18,34 @@
 -module(bits).
 
 %% 32bit primitives
--export([cnt32/1, lzc32/1]).
+-export([
+   cnt32/1
+  ,lzc32/1
+]).
+
 %% bitstring 
--export([cnt/1, lzc/1, lcc/2, prefix/2]).
+-export([
+   cnt/1
+  ,lzc/1
+  ,lcc/2
+  ,prefix/2
+  ,is_prefix/2
+]).
 
 -export([pxor/2, pand/2]).
 -export([cast/1, btoi/1, btol/1, btoh/1, htob/1]).
 -export([interleave/2]).
 
+%%%----------------------------------------------------------------------------   
+%%%
+%%% 32 bit integer
+%%%
+%%%----------------------------------------------------------------------------   
 
 %%
-%% set bit count (ones, count)
+%% count number of set bit at 32 bit integer (ones, count)
+-spec(cnt32/1 :: (integer()) -> integer()).
+
 cnt32(X0) ->
    X1 = X0 - ((X0 bsr 1) band 16#55555555),
    X2 = (((X1 bsr 2) band 16#33333333) + (X1 band 16#33333333)),
@@ -38,7 +55,9 @@ cnt32(X0) ->
    X5 band 16#0000003f.
 
 %%
-%% leading zero count
+%% leading zero count at 32 bit integer
+-spec(lzc32/1 :: (integer()) -> integer()).
+
 lzc32(X0) ->
    X1 = X0 bor (X0 bsr  1),
    X2 = X1 bor (X1 bsr  2),
@@ -47,10 +66,18 @@ lzc32(X0) ->
    X5 = X4 bor (X4 bsr 16),
    32 - cnt32(X5).
 
+%%%----------------------------------------------------------------------------   
+%%%
+%%% binary
+%%%
+%%%----------------------------------------------------------------------------   
 
 %%
-%% set bit count
-cnt(X) when is_bitstring(X) ->
+%% count number of set bit
+-spec(cnt/1 :: (bitstring()) -> integer()).
+
+cnt(X)
+ when is_bitstring(X) ->
    cnt(X, 0).
 
 cnt(<<X:32, Y/bits>>, Acc) ->
@@ -64,7 +91,10 @@ cnt(<<>>, Acc) ->
 
 %%
 %% leading zero count
-lzc(X) when is_bitstring(X) ->
+-spec(lzc/1 :: (bitstring()) -> integer()).
+
+lzc(X)
+ when is_bitstring(X) ->
    lzc(X, 0).
 
 lzc(<<0:32, Y/bits>>, Acc) ->
@@ -79,10 +109,11 @@ lzc(<<>>, Acc) ->
    Acc.
 
 %%
-%% lcc(X, Y) -> Count
-%%
 %% leading common bit count
-lcc(X, Y) when is_bitstring(X), is_bitstring(Y) ->
+-spec(lcc/2 :: (bitstring(), bitstring()) -> integer()).
+
+lcc(X, Y)
+ when is_bitstring(X), is_bitstring(Y) ->
    Xlen = bit_size(X),
    Ylen = bit_size(Y),
    Size = if Xlen > Ylen -> Ylen ; true -> Xlen end,
@@ -91,14 +122,30 @@ lcc(X, Y) when is_bitstring(X), is_bitstring(Y) ->
    lzc(<<(A bxor B):Size>>).
 
 
-%%
-%% prefix(X, Y) -> Bits
 %% 
 %% common bits prefix
-prefix(X, Y) when is_bitstring(X), is_bitstring(Y) ->
+-spec(prefix/2 :: (bitstring(), bitstring()) -> bitstring()).
+
+prefix(X, Y)
+ when is_bitstring(X), is_bitstring(Y) ->
    Plen = lcc(X,Y),
    <<Prefix:Plen/bits, _/bits>> = X,
    Prefix. 
+
+%%
+%% return true if Y is prefix of X
+-spec(is_prefix/2 :: (bitstring(), bitstring()) -> true | false).
+
+is_prefix(X, Y)
+ when is_bitstring(X), is_bitstring(Y) ->
+   Len = bit_size(Y),
+   case X of
+      <<Y:Len/bits, _/bits>> ->
+         true;
+      _ ->
+         false
+   end. 
+
 
 %%
 %%
