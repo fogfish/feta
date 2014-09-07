@@ -324,11 +324,11 @@ stream([[] | Tail], FieldBy, Prefix, Stream, Line) ->
 stream([Head | Tail], FieldBy, Prefix, Stream, Line) ->
    stream:new(lists:reverse(Head), fun() -> stream(Tail, FieldBy, Prefix, Stream, Line) end);
 
-stream([], FieldBy, Prefix, Stream, Line) ->
-   stream(stream:head(Stream), FieldBy, Prefix, stream:tail(Stream), Line);
+stream([], FieldBy, Prefix, {}, Line) ->
+   stream:new();
 
-stream(eof, _, _, _, _) ->
-   stream:new().
+stream([], FieldBy, Prefix, Stream, Line) ->
+   stream(stream:head(Stream), FieldBy, Prefix, stream:tail(Stream), Line).
 
 
 csv_parse(In, FieldBy, Pos, Len, Line, Chunk)
