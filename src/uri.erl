@@ -70,6 +70,7 @@
    to_binary/1,
    s/1,
    c/1,
+   urn/2,
    unescape/1, 
    escape/1,
    aton/1,
@@ -562,6 +563,32 @@ schema_to_s(Val)
 schema_to_s([H|T]) ->
    Schema = iolist_to_binary([scalar:s(H)] ++ [[$+, scalar:s(X)] || X <- T]),
    <<Schema/binary, $:>>.   
+
+%%
+%% to urn
+%% replaces urn prefix with short name and return corresponding urn schema
+-spec(urn/2 :: (uri(), any()) -> uri()).
+
+urn({uri, _, _}=Uri, Prefixes)
+ when is_list(Prefixes) ->
+   urn(uri:s(Uri), Prefixes);
+
+urn({urn, _, _}=Urn, _) ->
+   Urn;
+
+urn(Uri, [{Prefix, Head} | Prefixes])
+ when is_binary(Uri) ->
+   Len = byte_size(Head),
+   case Uri of
+      <<Head:Len/binary, Tail/binary>> ->
+         {urn, Prefix, Tail};
+      _ ->
+         urn(Uri, Prefixes)
+   end;
+
+urn(_Uri, []) ->
+   throw(badarg).
+
 
 
 %%%------------------------------------------------------------------
