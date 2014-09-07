@@ -169,9 +169,8 @@ decode_o(<<$", _/binary>>=X) ->
          {Head,  Tail};
 
       {Head, <<$^, $^, Rest/binary>>} ->
-         %% @todo: use type for serialization 
-         {_Type, Tail} = unquote(Rest, <<$<>>, <<$>>>),
-         {Head,  Tail};
+         {Type, Tail} = unquote(Rest, <<$<>>, <<$>>>),
+         {decode_l(Type, Head),  Tail};
 
       {_Head, _Tail} = Result ->
          Result
@@ -179,6 +178,23 @@ decode_o(<<$", _/binary>>=X) ->
 
 decode_o(_) ->
    throw(badarg).
+
+%%
+%% decode literal data type
+decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
+   tempus:decode("%Y-%m-%d", X);
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
+   tempus:decode("%Y-%m-%dT%H:%M:%S", X);
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#integer">>, X) ->
+   scalar:i(X);
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#string">>, X) ->
+   X;
+
+decode_l(_, X) ->
+   scalar:decode(X).
 
 
 %%%------------------------------------------------------------------
@@ -225,4 +241,5 @@ unquote(Bin, Qa, Qb) ->
       [X] ->
          {<<>>, X}
    end.
+
 
