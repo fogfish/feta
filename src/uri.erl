@@ -567,7 +567,7 @@ schema_to_s([H|T]) ->
 %%
 %% to urn
 %% replaces urn prefix with short name and return corresponding urn schema
--spec(urn/2 :: (uri(), any()) -> uri()).
+-spec(urn/2 :: (uri(), any()) -> binary()).
 
 urn({uri, _, _}=Uri, Prefixes)
  when is_list(Prefixes) ->
@@ -578,19 +578,19 @@ urn({urn, _, _}=Urn, _Prefixes) ->
 
 urn(<<"urn:", _/binary>>=Urn, _Prefixes) ->
    Urn;
-   
+
 urn(Uri, [{Prefix, Head} | Prefixes])
  when is_binary(Uri) ->
    Len = byte_size(Head),
    case Uri of
       <<Head:Len/binary, Tail/binary>> ->
-         {urn, Prefix, Tail};
+         uri:s({urn, Prefix, Tail});
       _ ->
          urn(Uri, Prefixes)
    end;
 
-urn(_Uri, []) ->
-   throw(badarg).
+urn(Uri, []) ->
+   Uri.
 
 
 
