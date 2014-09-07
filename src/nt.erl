@@ -137,12 +137,12 @@ decode_triple(X0) ->
 decode_s(X) ->
    case split(X, ?WS) of
       {<<$_, $:, X/binary>>, Tail} ->
-         {<<"urn:", X/binary>>, Tail};
+         {{url, <<"urn:", X/binary>>}, Tail};
       {<<>>,_Tail} ->
          throw(badarg);
       {Head, Tail} ->
          {Url,    _} = unquote(Head, <<$<>>, <<$>>>),
-         {Url, Tail}
+         {{url, Url}, Tail}
    end.
 
 %%
@@ -153,13 +153,14 @@ decode_p(X) ->
          throw(badarg);
       {Head, Tail} -> 
          {Url,     _} = unquote(Head, <<$<>>, <<$>>>),
-         {Url,  Tail}
+         {{url, Url},  Tail}
    end.
 
 %%
 %%
 decode_o(<<$<, _/binary>>=X) ->
-   unquote(X, <<$<>>, <<$>>>);
+   {Head, Tail} = unquote(X, <<$<>>, <<$>>>),
+   {{url, Head}, Tail};
 
 decode_o(<<$", _/binary>>=X) ->
    case unquote(X, <<$">>, <<$">>) of

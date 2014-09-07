@@ -573,9 +573,12 @@ urn({uri, _, _}=Uri, Prefixes)
  when is_list(Prefixes) ->
    urn(uri:s(Uri), Prefixes);
 
-urn({urn, _, _}=Urn, _) ->
+urn({urn, _, _}=Urn, _Prefixes) ->
    Urn;
 
+urn(<<"urn:", _/binary>>=Urn, _Prefixes) ->
+   Urn;
+   
 urn(Uri, [{Prefix, Head} | Prefixes])
  when is_binary(Uri) ->
    Len = byte_size(Head),
