@@ -70,9 +70,14 @@ pid_info(Attr, Pids) ->
 %%
 %%
 get_pid_info(Attr, Pid) ->
-   case lists:keyfind(Attr, 1, erlang:process_info(Pid)) of
-      false      -> undefined;
-      {_, Value} -> Value
+   case erlang:process_info(Pid) of
+      undefined ->
+         undefined;
+      List      ->
+         case lists:keyfind(Attr, 1, List) of
+            false      -> undefined;
+            {_, Value} -> Value
+         end
    end.
 
 %%
