@@ -192,15 +192,7 @@ decode(X)
       {match, [_, _]}       -> btoi(X);
       {match, [_, _, _]}    -> btof(X); 
       {match, [_, _, _, _]} -> btof(X);
-      nomatch -> 
-         % binary is reference to part of large binary received from server
-         % copy binary to reduce size 
-         case binary:referenced_byte_size(X) of
-            Size when Size > 2 * byte_size(X) -> 
-               binary:copy(X);
-            _ -> 
-               X
-         end
+      nomatch               -> deref(X)
    end;
 decode("true") -> 
    true;
@@ -215,6 +207,15 @@ decode(X)
       nomatch -> X
    end.
 
+% binary is reference to part of large binary received from server
+% copy binary to reduce size 
+deref(X) ->
+   case binary:referenced_byte_size(X) of
+      Size when Size > 2 * byte_size(X) -> 
+         binary:copy(X);
+      _ -> 
+         X
+   end.
 
 
 %%%------------------------------------------------------------------

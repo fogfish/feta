@@ -336,7 +336,7 @@ get_qelement([RegEx|T], X)
          get_qelement(T, X);
       _       ->
          [Key, Val] = binary:split(X, RegEx),
-         {binary_to_atom(RegEx, utf8), unescape(Key), scalar:decode(unescape(Val))}
+         {binary_to_atom(RegEx, utf8), unescape(Key), unescape(Val)}
    end;
 
 get_qelement([RegEx|T], X) ->
@@ -345,7 +345,7 @@ get_qelement([RegEx|T], X) ->
          get_qelement(T, X);
       _       ->
          [Key, Val] = binary:split(X, RegEx),
-         {unescape(Key), scalar:decode(unescape(Val))}
+         {unescape(Key), unescape(Val)}
    end.
 
 q(undefined, {uri, S, U}) ->
