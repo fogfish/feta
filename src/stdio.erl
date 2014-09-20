@@ -23,6 +23,7 @@
   ,new/2
   ,head/1
   ,tail/1
+  ,foreach/2
   ,list/1
 ]).
 -export([
@@ -69,6 +70,17 @@ tail({s, _, Fun}) ->
    Fun();
 tail(_) ->
    {}.
+
+%%
+%% apply function to each stream element
+-spec(foreach/2 :: (function(), stdio:stream()) -> ok).
+
+foreach(Fun, {s, _, _}=Stream) ->
+   Fun(head(Stream)),
+   foreach(Fun, tail(Stream));
+
+foreach(_Fun, _) ->
+   ok.
 
 %%
 %% return list of stream elements

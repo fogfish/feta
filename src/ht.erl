@@ -20,6 +20,9 @@
 %%     * a leaf node contains keys to data elements
 %%     * a leaf node is promoted to an internal node when its count exceeds 64. 
 %%     * each successive 6 bits of the hash defines branch to traverse.
+%%
+%%  @todo
+%%     * partial sync (peek subtree)
 -module(ht).
 
 -export([
