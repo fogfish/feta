@@ -256,6 +256,10 @@ event(T, Msg)
  when is_integer(T) ->
    {event, T, erlang:send_after(T, self(), Msg)};
 
+event({A, B, C}=T, Msg)
+ when is_integer(A), is_integer(B), is_integer(C) ->
+   event(m(T), Msg);
+
 event({event, _, _}=T, _Msg) ->
    T;
 
@@ -269,6 +273,10 @@ event(T, _Msg) ->
 timer(T, Msg)
  when is_integer(T) ->
    {timer, T, erlang:send_after(T, self(), Msg)};
+
+timer({A, B, C}=T, Msg)
+ when is_integer(A), is_integer(B), is_integer(C) ->
+   timer(m(T), Msg);
 
 timer({timer, _, _}=T, Msg) ->
    reset(T, Msg);
