@@ -423,6 +423,7 @@ decode([$%, $Y | Tail], Val, {{_Y,M,D}, {_H,_N,_S}=Time}) ->
 %% %r  Same as "%I:%M:%S %p" Example: 09:34:17 PM for 21:34:17
 %% %R  Same as "%H:%M" Example: 00:35 for 12:35 AM, 16:44 for 4:44 PM
 %% %S  Two digit representation of the second  00 through 59
+%% %f  Microsecond as a decimal number, zero-padded on the left. 000000, 000001, ..., 999999
 %% %T  Same as "%H:%M:%S"  Example: 21:34:17 for 09:34:17 PM
 %% %X  Preferred time representation based on locale, without the date Example: 03:59:16 or 15:59:16
 %% %z  Either the time zone offset from UTC or the abbreviation (depends on operating system)  Example: -0500 or EST for Eastern Time
@@ -438,6 +439,13 @@ decode([$%, $M | Tail], Val, {{_Y,_M,_D}=Date, {H,_N,S}}) ->
 decode([$%, $S | Tail], Val, {{_Y,_M,_D}=Date, {H,N,_S}}) ->
    {Sec, Rest} = lists:split(2, Val),
    decode(Tail, Rest, {Date, {H, N, scalar:i(Sec)}});
+
+decode([$%, $f | _] = Fmt, [C | Val], Acc)
+ when C >= $0, C =< $9 ->
+   decode(Fmt, Val, Acc);
+decode([$%, $f | Tail], Val, Acc) ->
+   decode(Tail, Val, Acc);
+
 
 %% Time and Date Stamps
 %% %c  Preferred date and time stamp based on local  Example: Tue Feb 5 00:45:10 2009 for February 5, 2009 at 12:45:10 AM
