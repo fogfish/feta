@@ -237,18 +237,55 @@ skip(Bin, Pat) ->
    end.
 
 %%
-%% unquote binary @todo: return error if quote pair do not exists
+%% unquote binary 
+%% @todo: return error if quote pair do not exists
+%%        make generic utility
 unquote(Bin, Qa, Qb) ->
    case binary:split(Bin,  Qa) of
       [_, X] ->
-         case binary:split(X, Qb) of
-            [H, T] ->
-               {H, T};
-            [_] ->
-               throw(badarg)
+         case match(X, Qb) of
+            nomatch ->
+               throw(badarg);
+            At      ->
+               H = binary:part(X, 0, At),
+               T = binary:part(X, At + 1, byte_size(X) - At - 1),
+               {H, T}
          end;
+         % case binary:split(X, Qb) of
+         %    [H, T] ->
+         %       {H, T};
+         %    [_] ->
+         %       throw(badarg)
+         % end;
       [X] ->
          {<<>>, X}
    end.
+
+%%
+%% match pattern and skip escape
+match(Bin, Pat) ->
+   match(0, byte_size(Bin), Bin, Pat).   
+
+match(I, L, Bin, Pat) ->
+   case binary:match(Bin, Pat, [{scope, {I, L}}]) of
+      nomatch ->
+         nomatch;
+      {I,  _} ->
+         I;
+
+      {X,  _} ->
+         case binary:at(Bin, X - 1) of
+            $\\ ->
+               match(X + 1, L - X - 1, Bin, Pat);
+            _   ->
+               X
+         end
+   end.
+
+
+
+
+
+
 
 
