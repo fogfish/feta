@@ -276,7 +276,7 @@ match(I, L, Bin, Pat) ->
       {X,  _} ->
          case binary:at(Bin, X - 1) of
             $\\ ->
-               match(X + 1, L - X - 1, Bin, Pat);
+               match(X + 1, byte_size(Bin) - X - 1, Bin, Pat);
             _   ->
                X
          end
