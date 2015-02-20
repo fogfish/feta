@@ -407,6 +407,11 @@ decode([$%, $y | Tail], Val, {{_Y,M,D}, {_H,_N,_S}=Time}) ->
    Y = 2000 + scalar:i(Year), 
    decode(Tail, Rest, {{Y,M,D}, Time});
 
+decode([$%, $Y | Tail], [$- | Val], {{_Y,M,D}, {_H,_N,_S}=Time}) ->
+   %% BC Year (e.g. -0063-09-23)
+   {Year, Rest} = lists:split(4, Val),
+   decode(Tail, Rest, {{-1 * scalar:i(Year),M,D}, Time});
+
 decode([$%, $Y | Tail], Val, {{_Y,M,D}, {_H,_N,_S}=Time}) ->
    {Year, Rest} = lists:split(4, Val),
    decode(Tail, Rest, {{scalar:i(Year),M,D}, Time});
@@ -464,8 +469,12 @@ decode([$%, $s | _Tail], Val, _Acc) ->
 decode([H | Tail], [H | Val], Acc) ->
    decode(Tail, Val, Acc);
 
-decode([], _Val, Acc) ->
+decode([], _Val, {{Y, _, _}, _}=Acc)
+ when Y > 0 ->
    Sec = calendar:datetime_to_gregorian_seconds(Acc) - ?UNX_EPOCH,
+   {Sec div ?BASE, Sec rem ?BASE, 0};
+decode([], _Val, {{Y,M,D}, T}) ->
+   Sec = -1 * calendar:datetime_to_gregorian_seconds({{-1 * Y,M,D}, T}) - ?UNX_EPOCH,   
    {Sec div ?BASE, Sec rem ?BASE, 0}.
 
 
@@ -549,12 +558,26 @@ encode(Fmt, Time)
 encode(Fmt, {{_Y,_M,_D}, {_H,_N,_S}}=Val) ->
    encode(Fmt, Val, []);
 
-encode(Fmt, {_Mega, _Sec, _Micro}=Val) ->
-   encode(Fmt, calendar:now_to_universal_time(Val), []);
+encode(Fmt, {Mega, Sec, _Micro}) ->
+   encode(Fmt, Mega * ?BASE + Sec);
 
 encode(Fmt, Val) 
+ when is_integer(Val), Val > 0 ->
+   encode(Fmt, calendar:gregorian_seconds_to_datetime(Val + ?UNX_EPOCH), []);
+
+encode(Fmt, Val)
  when is_integer(Val) ->
-   encode(Fmt, calendar:gregorian_seconds_to_datetime(Val + ?UNX_EPOCH), []).
+   "-" ++ encode(Fmt, calendar:gregorian_seconds_to_datetime(-1 * Val - ?UNX_EPOCH), []).
+
+
+% decode([], _Val, {{Y, _, _}, _}=Acc)
+%  when Y > 0 ->
+%    Sec = calendar:datetime_to_gregorian_seconds(Acc) - ?UNX_EPOCH,
+%    {Sec div ?BASE, Sec rem ?BASE, 0};
+% decode([], _Val, {{Y,M,D}, T}) ->
+%    Sec = -1 * calendar:datetime_to_gregorian_seconds({{-1 * Y,M,D}, T}) - ?UNX_EPOCH,   
+%    {Sec div ?BASE, Sec rem ?BASE, 0}.
+
 
 
 %% Day 
