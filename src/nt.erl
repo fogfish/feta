@@ -73,7 +73,7 @@ new() ->
 stream(Stream) ->
    stream(Stream, new()).
 
-stream({},     State) ->
+stream({},    _State) ->
    stdio:new();
 stream(Stream, State) ->
    stream(stdio:head(Stream), Stream, State).
@@ -116,6 +116,14 @@ decode(Chunk, Acc, State) ->
       {SPO, Tail} ->
          decode(Tail, [SPO | Acc], State)
    end.
+
+decode_triple(<<$#, X0/binary>>) ->
+   case binary:split(X0, <<$\n>>) of
+      [_, X1] ->
+         decode_triple(X1);
+      _       ->
+         undefined
+   end;
 
 decode_triple(X0) ->
    try
@@ -236,7 +244,7 @@ unquote(Bin, Qa, Qb) ->
          case binary:split(X, Qb) of
             [H, T] ->
                {H, T};
-            [H] ->
+            [_] ->
                throw(badarg)
          end;
       [X] ->
