@@ -251,12 +251,6 @@ unquote(Bin, Qa, Qb) ->
                T = binary:part(X, At + 1, byte_size(X) - At - 1),
                {H, T}
          end;
-         % case binary:split(X, Qb) of
-         %    [H, T] ->
-         %       {H, T};
-         %    [_] ->
-         %       throw(badarg)
-         % end;
       [X] ->
          {<<>>, X}
    end.

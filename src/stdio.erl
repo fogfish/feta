@@ -28,6 +28,7 @@
 ]).
 -export([
    file/1
+  ,file/2
 ]).
 
 -export_type([stream/0]).
@@ -93,18 +94,25 @@ list(_) ->
 
 %%
 %% create file stream
+%%  Options:
+%%    * {iobuf, integer()} - size of i/o buffer
 -spec(file/1 :: (list()) -> stdio:stream()).
+-spec(file/2 :: (list(), list()) -> stdio:stream()).
 
 file(File) ->
-   {ok, FD} = file:open(File, [raw, binary, read]),
-   iostream(FD).
+   file(File, []).
+
+file(File, Opts) ->
+   Chunk = opts:val(iobuf, 64 * 1024, Opts),
+    {ok, FD} = file:open(File, [raw, binary, read, {read_ahead, Chunk}]),
+   iostream(FD, Chunk).
 
 
-iostream(FD)
+iostream(FD, IoBuf)
  when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
-   case file:read(FD, 1 * 1024) of
+   case file:read(FD, IoBuf) of
       {ok, Chunk} ->
-         stdio:new(Chunk, fun() -> iostream(FD) end);
+         stdio:new(Chunk, fun() -> iostream(FD, IoBuf) end);
       eof  ->
          file:close(FD),
          stream:new();
