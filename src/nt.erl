@@ -277,6 +277,16 @@ match(I, L, Bin, Pat) ->
    end.
 
 
+% unescape(Val) ->
+%    erlang:iolist_to_binary(unescape1(Val)).
+
+% unescape1(Val) ->
+%    case binary:split(Val, <<16#f0>>) of
+%       [Head, <<H:8, T/binary>>] ->
+%          [Head, (16#f0 bxor H) | unescape1(T)];
+%       List ->
+%          List
+%    end.
 
 
 

@@ -20,7 +20,9 @@
 -module(csv).
 -export([
    new/0
+  ,new/1
   ,stream/1
+  ,stream/2
   ,decode/2
   ,encode/2
 ]).
@@ -46,13 +48,21 @@
 %%
 %% create csv parser
 -spec(new/0 :: () -> #csv{}).
+-spec(new/1 :: (list()) -> #csv{}).
 
 new() ->
    #csv{}.
 
+new(Opts) ->
+   #csv{
+      field = opts:val(field, ?FIELD_BY, Opts),
+      line  = opts:val(line,  ?LINE_BY, Opts)
+   }.
+
 %%
 %% stream decoder
 -spec(stream/1 :: (stdio:stream()) -> stdio:stream()).
+-spec(stream/2 :: (stdio:stream(), #csv{}) -> stdio:stream()).
 
 stream(Stream) ->
    stream(Stream, new()).

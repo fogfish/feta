@@ -567,7 +567,13 @@ encode(Fmt, Val)
 
 encode(Fmt, Val)
  when is_integer(Val) ->
-   "-" ++ encode(Fmt, calendar:gregorian_seconds_to_datetime(-1 * Val - ?UNX_EPOCH), []).
+   case Val + ?UNX_EPOCH of
+      X when X > 0 ->
+         encode(Fmt, calendar:gregorian_seconds_to_datetime(X));
+      _ ->
+         "-" ++ encode(Fmt, calendar:gregorian_seconds_to_datetime(-1 * Val + ?UNX_EPOCH), [])
+   end.
+
 
 
 % decode([], _Val, {{Y, _, _}, _}=Acc)
