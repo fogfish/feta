@@ -274,9 +274,19 @@ timer(T, Msg)
  when is_integer(T) ->
    {timer, T, erlang:send_after(T, self(), Msg)};
 
+timer({T0, Drift}=T, Msg)
+ when is_integer(T0) ->
+   T1 = T0 + random:uniform(erlang:trunc(T0 * Drift)),
+   {timer, T, erlang:send_after(T1, self(), Msg)};
+
 timer({A, B, C}=T, Msg)
  when is_integer(A), is_integer(B), is_integer(C) ->
    timer(m(T), Msg);
+
+timer({{A, B, C}=T, Drift}, Msg)
+ when is_integer(A), is_integer(B), is_integer(C) ->
+   timer({m(T), Drift}, Msg);
+
 
 timer({timer, _, _}=T, Msg) ->
    reset(T, Msg);
