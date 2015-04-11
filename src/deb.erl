@@ -4,10 +4,14 @@
 
 -export([
    uptime/0
-  ,mbox/1
+  ,queue/0
+  ,queue/1
+  ,heap/0
   ,heap/1
-  ,reductions/1
+  ,cpu/0
+  ,cpu/1
   ,supervised/1
+  ,state/1
 ]).
 
 %%
@@ -19,24 +23,36 @@ uptime() ->
 
 
 %%
-%% mailbox size (message queue length)
--spec(mbox/1 :: ([pid()]) -> [{pid(), integer()}]).
+%% inspect length of process queues
+-spec(queue/0 :: () -> [{pid(), integer()}]).
+-spec(queue/1 :: ([pid()]) -> [{pid(), integer()}]).
 
-mbox(Pids) ->
+queue() ->
+   queue(erlang:processes()).
+
+queue(Pids) ->
    pid_info(message_queue_len, Pids).
 
 %%
-%% heap size
+%% inspect processes heap size
+-spec(heap/0 :: () -> [{pid(), integer()}]).
 -spec(heap/1 :: ([pid()]) -> [{pid(), integer()}]).
+
+heap() ->
+   heap(erlang:processes()).
 
 heap(Pids) ->
    pid_info(total_heap_size, Pids).
 
 %%
-%% process reductions
--spec(reductions/1 :: ([pid()]) -> [{pid(), integer()}]).
+%% inspect reductions used by processes
+-spec(cpu/0 :: () -> [{pid(), integer()}]).
+-spec(cpu/1 :: ([pid()]) -> [{pid(), integer()}]).
 
-reductions(Pids) ->
+cpu() ->
+   cpu(erlang:processes()).
+
+cpu(Pids) ->
    pid_info(reductions, Pids).
 
 %%
@@ -56,6 +72,25 @@ supervised(Sup, Acc0) ->
       supervisor:which_children(Sup)
    ).
 
+%%
+%% read process state
+-spec(state/1 :: (atom() | pid()) -> any()).
+
+state(Pid) ->
+   {status, _Pid, _Mod, 
+      [_PDict, _State, _Parent, _Dbg, Status]
+   } = sys:get_status(Pid, 5000),
+   case 
+      [ State || {data, [{"State", State}]} <- Status]
+   of
+      []   ->
+         Status;
+      List ->
+         hd(List)
+   end.
+
+
+
 %%%------------------------------------------------------------------
 %%%
 %%% private
@@ -65,7 +100,12 @@ supervised(Sup, Acc0) ->
 %%
 %%
 pid_info(Attr, Pids) ->
-   sort([{X, get_pid_info(Attr, X)} || X <- Pids]).
+   sort(
+      lists:filter(
+         fun({_, Info}) -> Info =/= undefined end,
+         [{X, get_pid_info(Attr, X)} || X <- Pids]
+      )
+   ).
 
 %%
 %%

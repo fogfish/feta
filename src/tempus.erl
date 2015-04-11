@@ -276,7 +276,12 @@ timer(T, Msg)
 
 timer({T0, Drift}=T, Msg)
  when is_integer(T0) ->
-   T1 = T0 + random:uniform(erlang:trunc(T0 * Drift)),
+   T1 = case erlang:trunc(T0 * Drift) of
+      0 ->
+         T0;
+      X ->
+         T0 + random:uniform(X)
+   end,
    {timer, T, erlang:send_after(T1, self(), Msg)};
 
 timer({A, B, C}=T, Msg)
