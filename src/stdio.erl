@@ -104,7 +104,7 @@ file(File) ->
 
 file(File, Opts) ->
    Chunk = opts:val(iobuf, 64 * 1024, Opts),
-    {ok, FD} = file:open(File, [raw, binary, read, {read_ahead, Chunk}]),
+   {ok, FD} = file:open(File, [raw, binary, read, {read_ahead, Chunk}]),
    iostream(FD, Chunk).
 
 

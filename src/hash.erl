@@ -161,5 +161,3 @@ h32(X)
    X;
 h32(X) ->
    erlang:phash2(X).
-
-
