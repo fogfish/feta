@@ -139,23 +139,19 @@ fold32(<<>>, Hash) ->
 %%
 %% Cyclic polynomial (buzhash)
 %% see http://en.wikipedia.org/wiki/Rolling_hash
-buz32(N)
- when is_integer(N) ->
-   {0, N rem 32, N, queue:new()};
-
-buz32({Hash, _, _, _}) ->
-   Hash.
+buz32(N) ->
+   {0, N rem 32, N, queue:new()}.
 
 buz32(X, {Hash0, K, 0, Hashes0}) ->
    {{value, HashK}, Hashes1} = queue:out(Hashes0),
    HashX = h32(X),
    Hash1 = s32(Hash0, 1) bxor s32(HashK, K) bxor HashX,
-   {Hash1, K, 0, queue:in(HashX, Hashes1)};
+   {Hash1, {Hash1, K, 0, queue:in(HashX, Hashes1)}};
 
 buz32(X, {Hash0, K, N, Hashes0}) ->
    HashX = h32(X),
    Hash1 = s32(Hash0, 1) bxor HashX,
-   {Hash1, K, N - 1, queue:in(HashX, Hashes0)}.
+   {Hash1, {Hash1, K, N - 1, queue:in(HashX, Hashes0)}}.
 
 s32(Hash, K) ->
    ((Hash bsl K) bor (Hash bsr (32 - K)) ) band ?MASK32.
