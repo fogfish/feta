@@ -18,10 +18,18 @@
 -module(spawner).
 
 -export([
-   new/1
+   start/3
+  ,new/1
   ,free/1
   ,run/1
 ]).
+
+%%
+%% compatibility wrapper for slave
+-spec(start/3 :: (atom(), atom(), list()) -> {ok, node()} | {error, any()}).
+
+start(_Host, Node, _Opts) ->
+   new(Node).
 
 %%
 %% spawn new node
