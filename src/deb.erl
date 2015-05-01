@@ -12,6 +12,7 @@
   ,cpu/1
   ,supervised/1
   ,state/1
+  ,test/1
 ]).
 
 %%
@@ -88,6 +89,14 @@ state(Pid) ->
       List ->
          hd(List)
    end.
+
+%%
+%% execute common test and terminate node
+-spec(test/1 :: (list()) -> ok).
+
+test(Spec) ->
+   ct_master:run(Spec),
+   erlang:halt().
 
 
 
