@@ -3,11 +3,23 @@
 -module(fs).
 
 -export([
+   expand/1,
    foreach/2,
    fold/3
 ]).
 
 -type(path() :: list()).
+
+%%
+%% expand path with node name
+expand([Path | Tail])
+ when is_list(Path) orelse is_binary(Path) ->
+   [Node, _] = string:tokens(scalar:c(erlang:node()), "@"),
+   filename:join([scalar:c(Path), Node | Tail]);
+expand(Path) ->
+   [Node, _] = string:tokens(scalar:c(erlang:node()), "@"),
+   filename:join([scalar:c(Path), Node]).
+
 
 %%
 %% applies a function to each file for its side-effects;
