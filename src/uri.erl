@@ -83,11 +83,12 @@
 % -export([match/2]).
 % -export([]).
 
--export_type([uri/0]).
+-export_type([uri/0, urn/0]).
 
 %% 
--type(uri()    :: {uri | urn, schema(), any()}).
--type(schema() :: atom() | [atom()]).
+-type(uri()    :: {uri, schema(),  any()}).
+-type(urn()    :: {urn, binary(), binary}).
+-type(schema() :: binary() | atom() | [atom()]).
 
 %% internal uri structures
 -record(uval, {
@@ -126,7 +127,10 @@ new(Uri)
       {urn, UVal} ->
          case binary:split(UVal#uval.path, <<$:>>) of
             [Schema, Path] ->
-               {urn, schema_to_uri(Schema), Path};
+               case binary:split(Schema, <<$+>>, [global]) of
+                  [S] ->  {urn, S, Path};
+                   S  ->  {urn, S, Path}
+               end;
             [Path] ->
                {urn, undefined, Path}
          end;
