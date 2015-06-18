@@ -23,6 +23,7 @@
 -export([seq31/1, seq32/1]).
 -export([fold32/1]).
 -export([buz32/1, buz32/2]).
+-export([pbkdf2/5]).
 
 %%
 %%  FNV32 initial state
@@ -161,3 +162,47 @@ h32(X)
    X;
 h32(X) ->
    erlang:phash2(X).
+
+
+%%%------------------------------------------------------------------
+%%%
+%%% Password-Based Key Derivation Function
+%%%
+%%%------------------------------------------------------------------
+
+%%
+%% see 
+%%   http://en.wikipedia.org/wiki/PBKDF2
+%%   https://www.ietf.org/rfc/rfc6070.txt
+-spec(pbkdf2/5 :: (atom(), binary(), binary(), integer(), integer()) -> binary()).
+
+pbkdf2(Hash, Pass, Salt, C, DkLen) ->
+   Init = crypto:hmac(Hash, Pass, Salt),
+   N    = ceil(DkLen / (byte_size(Init) * 8)),
+   binary:part(    
+      erlang:iolist_to_binary(
+         [fpbkdf2(C, Hash, Pass, <<Salt/binary, I:32/integer>>) || I <- lists:seq(1, N)]
+      ),
+      0,
+      DkLen div 8
+   ).
+
+fpbkdf2(C, Hash, Pass, Data) ->
+   Init = crypto:hmac(Hash, Pass, Data),
+   fpbkdf2(C - 1, Hash, Pass, Init, Init).   
+
+fpbkdf2(0, _Hash, _Pass, _Data, Acc) ->
+   Acc;
+fpbkdf2(C,  Hash,  Pass,  Data, Acc) ->
+   Next = crypto:hmac(Hash, Pass, Data),
+   fpbkdf2(C - 1, Hash, Pass, Next, crypto:exor(Acc, Next)).
+
+ceil(X) ->
+   case trunc(X) of 
+      Y when Y < X -> Y + 1; 
+      Y            -> Y 
+   end.
+
+      
+
+
