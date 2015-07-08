@@ -21,9 +21,9 @@
 boot(App) ->
    case binary:split(scalar:s(erlang:node()), <<$@>>) of
       [Node] ->
-         boot(App, code:where_is_file(scalar:c(<<Node/binary, ".config">>)));
+         boot(App, where_is_config(scalar:c(<<Node/binary, ".config">>)));
       [Node, _Host] ->
-         boot(App, code:where_is_file(scalar:c(<<Node/binary, ".config">>)))
+         boot(App, where_is_config(scalar:c(<<Node/binary, ".config">>)))
    end.
 
 boot(App, Config)
@@ -38,6 +38,14 @@ boot(App, Config)
 
 boot(App, _Config) ->
    boot(App, []).
+
+where_is_config(File) ->
+   case code:where_is_file(File) of
+      non_existing ->
+         code:where_is_file("dev.config");
+      Path ->
+         Path
+   end.
 
 %%
 %% list application dependencies
