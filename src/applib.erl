@@ -19,16 +19,25 @@
 -spec(boot/2 :: (atom(), list()) -> ok).
 
 boot(App) ->
-   boot(App, []).
+   case binary:split(scalar:s(erlang:node()), <<$@>>) of
+      [Node] ->
+         boot(App, code:where_is_file(scalar:c(<<Node/binary, ".config">>)));
+      [Node, _Host] ->
+         boot(App, code:where_is_file(scalar:c(<<Node/binary, ".config">>)))
+   end.
 
-boot(App, Config) ->
+boot(App, Config)
+ when is_list(Config) ->
    %% the boot is composed of three phases
    %%  1. load all dependencies (setup default app environment)
    %%  2. Overlay default environment
    %%  3. start all applications
    ok = ensure_loaded(App),
    ok = setenv(Config),
-   ensure_started(App).
+   ensure_started(App);
+
+boot(App, _Config) ->
+   boot(App, []).
 
 %%
 %% list application dependencies
