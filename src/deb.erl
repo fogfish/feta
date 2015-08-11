@@ -95,10 +95,17 @@ state(Pid) ->
 -spec(test/1 :: (list()) -> ok).
 
 test(Spec) ->
-   ct_master:run(Spec),
+   {ok, Test} = file:consult(Spec),
+   case lists:keyfind(node, 1, Test) of
+      %% run local test
+      false ->
+         ct:run_test([{spec, Spec}]);
+
+      %% run distributed test
+      _     ->
+         ct_master:run(Spec)
+   end,
    erlang:halt().
-
-
 
 %%%------------------------------------------------------------------
 %%%
