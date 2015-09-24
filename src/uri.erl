@@ -165,8 +165,13 @@ schema({Uri, S, _})
    S.
 
 schema(Val, {Uri, _, U})
+ when ?is_urn(Uri), (is_atom(Val) orelse is_binary(Val)) ->
+   {Uri, scalar:s(Val), U}; 
+
+schema(Val, {Uri, _, U})
  when ?is_uri(Uri), (is_atom(Val) orelse is_list(Val)) ->
-   {uri, Val, U}.
+   {Uri, Val, U}.
+
 
 %%
 %% uri user info
