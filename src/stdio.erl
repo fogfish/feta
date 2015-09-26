@@ -25,6 +25,7 @@
   ,tail/1
   ,foreach/2
   ,list/1
+  ,list/2
 ]).
 -export([
    file/1
@@ -86,11 +87,19 @@ foreach(_Fun, _) ->
 %%
 %% return list of stream elements
 -spec(list/1 :: (stdio:stream()) -> list()).
+-spec(list/2 :: (integer(), stdio:stream()) -> list()).
 
 list({s, _, _}=Stream) ->
    [stdio:head(Stream) | list(stdio:tail(Stream))];
 list(_) ->
    [].
+
+list(N, {s, _, _}=Stream)
+ when N > 0 ->
+   [stdio:head(Stream) | list(N - 1, stdio:tail(Stream))];
+list(_, _) ->
+   [].
+
 
 %%
 %% create file stream

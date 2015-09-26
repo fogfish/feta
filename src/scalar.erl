@@ -85,7 +85,7 @@ s(X) when is_float(X)   -> ftos(X).
 
 btos(X) -> X.
 atos(X) -> atom_to_binary(X, utf8).
-ltos(X) -> list_to_binary(X).
+ltos(X) -> iolist_to_binary(X).
 itos(X) -> ltos(itol(X)).
 ftos(X) -> ltos(io_lib:format("~.9f", [X])).
 
