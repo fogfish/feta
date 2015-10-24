@@ -133,7 +133,9 @@ decode_triple(X0) ->
          {{url, _} = O, X} ->
             {{S, P, O}, X};
          {{O, C}, X} ->
-            {{S, P, O, C}, X}
+            {{S, P, O, C}, X};
+         {O, X} ->
+            {{S,P,O}, X}
       end,
       case binary:split(X3, ?EOL) of
          [_, X4] ->
@@ -292,13 +294,23 @@ match(I, L, Bin, Pat) ->
          I;
 
       {X,  _} ->
-         case binary:at(Bin, X - 1) of
-            $\\ ->
-               match(X + 1, byte_size(Bin) - X - 1, Bin, Pat);
-            _   ->
-               X
+         case is_escaped(Bin, X) of
+            true  ->
+               X;
+            false ->
+               match(X + 1, byte_size(Bin) - X - 1, Bin, Pat)
          end
    end.
+
+is_escaped(Bin, X) ->
+   is_escaped(binary:at(Bin, X - 1), Bin, X, 2).
+is_escaped($\\, Bin, X, I)
+ when X >= I ->
+   is_escaped(binary:at(Bin, X - I), Bin, X, I + 1);
+is_escaped($\\, _, _, I) ->
+   I rem 2 == 1;
+is_escaped(_, _, _, I) ->
+   (I - 1) rem 2 == 1.
 
 
 % unescape(Val) ->
