@@ -21,7 +21,7 @@
 %%   comment     ::=   '#' (character - ( cr | lf ) )*   
 %%   triple      ::=   subject ws+ predicate ws+ object ws* '.' ws*  
 %%   subject     ::=   uriref | namedNode    
-%%   predicate   ::=   uriref    
+%%   predicate   ::=   uriref | literal   
 %%   object      ::=   uriref | namedNode | literal   
 %%   uriref      ::=   '<' absoluteURI '>'   
 %%   namedNode   ::=   '_:' name    
@@ -127,12 +127,17 @@ decode_triple(<<$#, X0/binary>>) ->
 
 decode_triple(X0) ->
    try
-      {S, X1} = decode_s(X0),
-      {P, X2} = decode_p(X1),
-      {O, X3} = decode_o(X2),
+      {S, X1}  = decode_s(X0),
+      {P, X2}  = decode_p(X1),
+      {Nt, X3} = case decode_o(X2) of
+         {{url, _} = O, X} ->
+            {{S, P, O}, X};
+         {{O, C}, X} ->
+            {{S, P, O, C}, X}
+      end,
       case binary:split(X3, ?EOL) of
          [_, X4] ->
-            {{S, P, O}, X4};
+            {Nt, X4};
          _       ->
             undefined
       end
@@ -144,8 +149,8 @@ decode_triple(X0) ->
 %%
 decode_s(X) ->
    case split(X, ?WS) of
-      {<<$_, $:, X/binary>>, Tail} ->
-         {{url, <<"urn:", X/binary>>}, Tail};
+      {<<$_, $:, Y/binary>>, Tail} ->
+         {{url, <<"urn:", Y/binary>>}, Tail};
       {<<>>,_Tail} ->
          throw(badarg);
       {Head, Tail} ->
@@ -155,8 +160,19 @@ decode_s(X) ->
 
 %%
 %%
+decode_p(<<$", _/binary>> = X) ->
+   {Head, Tail} = unquote(X, <<$">>, <<$">>),
+   case binary:split(Tail, ?WS) of
+      [Rest] ->
+         {Head, Rest};
+      [_, Rest] ->
+         {Head, Rest}
+   end;
+
 decode_p(X) ->
    case split(X, ?WS) of
+      {<<$_, $:, Y/binary>>, Tail} ->
+         {{url, <<"urn:", Y/binary>>}, Tail};
       {<<>>,_Tail} ->
          throw(badarg);
       {Head, Tail} -> 
@@ -166,6 +182,15 @@ decode_p(X) ->
 
 %%
 %%
+decode_o(<<$_, $:, Y/binary>>) ->
+   {Head, Tail} = split(Y, ?WS),
+   case split(Head, [<<$@>>]) of 
+      {_,  <<>>} ->
+         {{url, <<"urn:", Head/binary>>}, Tail};
+      {Urn, Tag} ->
+         {{{url, <<"urn:", Urn/binary>>}, Tag}, Tail}
+   end;
+
 decode_o(<<$<, _/binary>>=X) ->
    {Head, Tail} = unquote(X, <<$<>>, <<$>>>),
    {{url, Head}, Tail};
@@ -173,9 +198,8 @@ decode_o(<<$<, _/binary>>=X) ->
 decode_o(<<$", _/binary>>=X) ->
    case unquote(X, <<$">>, <<$">>) of
       {Head, <<$@, Rest/binary>>} ->
-         %% @todo: use language tag
-         {_Lang, Tail} = skip(Rest, ?EOL),
-         {Head,  Tail};
+         {Lang, Tail} = skip(Rest, ?EOL),
+         {{Head, Lang}, Tail};
 
       {Head, <<$^, $^, Rest/binary>>} ->
          {Type, Tail} = unquote(Rest, <<$<>>, <<$>>>),

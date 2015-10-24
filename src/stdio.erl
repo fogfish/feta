@@ -124,7 +124,7 @@ iostream(FD, IoBuf)
          stdio:new(Chunk, fun() -> iostream(FD, IoBuf) end);
       eof  ->
          file:close(FD),
-         stream:new();
+         stdio:new();
       {error, Reason} ->
          file:close(FD),
          throw(Reason)
