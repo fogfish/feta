@@ -57,7 +57,7 @@
 
 %% grammar  
 -define(WS,  [<<$ >>, <<$\t>>, <<$\n>>]).
--define(EOL, <<$.>>).
+-define(EOL, <<$.,$\n>>).
 
 %%
 %% create new triple parser

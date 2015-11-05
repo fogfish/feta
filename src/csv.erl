@@ -67,7 +67,7 @@ new(Opts) ->
 stream(Stream) ->
    stream(Stream, new()).
 
-stream({},     State) ->
+stream({},    _State) ->
    stdio:new();
 stream(Stream, State) ->
    stream(stdio:head(Stream), Stream, State).
@@ -112,8 +112,21 @@ decode(Chunk, Acc, #csv{field=FieldBy, line=LineBy}=State) ->
    
 %%
 %% split csv line
+split(<<$", Input/binary>>, FieldBy) ->
+   case binary:split(Input, <<$", FieldBy/binary>>) of
+      [Head, Tail] ->
+         [Head | split(Tail, FieldBy)];
+      [_] = Head ->
+         Head
+   end;
+      
 split(Input, FieldBy) ->
-   binary:split(Input, FieldBy, [global]).
+   case binary:split(Input, FieldBy) of
+      [Head, Tail] ->
+         [Head | split(Tail, FieldBy)];
+      [_] = Head ->
+         Head
+   end.
 
 %%%------------------------------------------------------------------
 %%%
