@@ -44,8 +44,7 @@ lookup([Key | Tail], Value) ->
 lookup([], Value) ->
    Value;
 lookup(Key, Value) ->
-   {Key, Val} = lists:keyfind(Key, 1, Value),
-   Val.
+   lookup_term(Key, Value).   
 
 %%
 %% lookup value using path
@@ -59,6 +58,7 @@ lookup(Path, Default, Pairs) ->
       Default
    end.
 
+
 lookup_term(_, undefined) ->
    undefined;
 lookup_term(Key, X)
@@ -69,10 +69,11 @@ lookup_term(Key, X)
    lists:nth(Key, X);
 lookup_term(Key, X)
  when is_list(X) ->
-   case lists:keyfind(Key, 1, X) of
-      false    -> exit({badarg, Key});
-      {_, Val} -> Val
-   end.
+   {Key, Val} = lists:keyfind(Key, 1, X),
+   Val;
+lookup_term(Key, X)
+ when is_map(X) ->
+   maps:get(Key, X).
 
 %%
 %% shortcut alias to lookup path
@@ -80,7 +81,6 @@ lookup_term(Key, X)
 
 x(Path, Pairs) ->
    lookup(Path, undefined, Pairs).
-
 
 
 %%
