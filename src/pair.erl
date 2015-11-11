@@ -21,6 +21,7 @@
    lookup/2
   ,lookup/3
   ,x/2
+  ,a/2
   ,rtop/2
   ,rtoa/2
   ,rtos/2
@@ -82,6 +83,14 @@ lookup_term(Key, X)
 x(Path, Pairs) ->
    lookup(Path, undefined, Pairs).
 
+
+%%
+%% shortcut alias to check is path exists
+-spec(a/2 :: ([key()], pairs()) -> true | false).
+
+a(Path, Pairs) ->
+   X = lookup(Path, undefined, Pairs),
+   X =/= undefined andalso X =/= false.
 
 %%
 %% record to pairs, build list of key / val pairs from record.
