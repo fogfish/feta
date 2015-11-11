@@ -77,6 +77,7 @@ itof(X) -> X + 0.0.
 %% scalar to string
 -spec(s/1 :: (any()) -> binary()).
 
+s(undefined)            -> <<>>;
 s(X) when is_binary(X)  -> btos(X);
 s(X) when is_atom(X)    -> atos(X);
 s(X) when is_list(X)    -> ltos(X);
@@ -114,6 +115,7 @@ utob(X) ->
 %% character list
 -spec(c/1 :: (any()) -> list()).
 
+c(undefined)            -> [];
 c(X) when is_binary(X)  -> btol(X);
 c(X) when is_atom(X)    -> atol(X);
 c(X) when is_list(X)    -> X;
