@@ -20,7 +20,6 @@
 -export([
    lookup/2
   ,lookup/3
-  ,insert/3
   ,x/2
   ,a/2
   ,rtop/2
@@ -76,26 +75,6 @@ lookup_term(Key, X)
 lookup_term(Key, X)
  when is_map(X) ->
    maps:get(Key, X).
-
-%%
-%% insert value using path (do not support hierarchy yet)
--spec(insert/3 :: ([key()], any(), pairs()) -> val()).
-
-insert([Key], Val, X) ->
-   insert_term(Key, Val, X);
-insert(Key, Val, X) ->
-   insert_term(Key, Val, X).
-
-insert_term(Key, Val, X)
- when is_integer(Key), is_tuple(X) ->
-   erlang:setelement(Key, X, Val);
-insert_term(Key, Val, X)
- when is_list(X) ->
-   [{Key, Val} | X];
-insert_term(Key, Val, X)
- when is_map(X) ->
-   maps:put(Key, Val, X).
-
 
 %%
 %% shortcut alias to lookup path
