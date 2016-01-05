@@ -14,8 +14,8 @@
 %%   limitations under the License.
 %%
 %%  @doc
-%%   random distributions
--module(rand).
+%%   probability distribution function
+-module(pdf).
 
 -export([
    poisson/1,
