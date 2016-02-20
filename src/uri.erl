@@ -78,10 +78,6 @@
    add/3,
    match/2
 ]).
-%    check/2]).
-% -export([add/3]).
-% -export([match/2]).
-% -export([]).
 
 -export_type([uri/0, urn/0]).
 
@@ -318,6 +314,15 @@ segments(Val, Uri)
 %% join path segment(s)
 -spec(join/2 :: ([any()], uri()) -> uri()).
 
+join([H|T], {urn, _, _}=Uri) ->
+   X = iolist_to_binary([scalar:s(H)|[[$:, scalar:s(X)] || X <- T]]),
+   case uri:path(Uri) of
+      <<>> ->
+         uri:path(X, Uri);
+      Path ->
+         uri:path(<<Path/binary, $:, X/binary>>, Uri)
+   end;
+
 join(Join, {T, _, _}=Uri)
  when ?is_uri(T), is_list(Join) ->
    X = iolist_to_binary([[$/, scalar:s(X)] || X <- Join]),
@@ -327,6 +332,7 @@ join(Join, {T, _, _}=Uri)
       Path      ->
          uri:path(<<Path/binary, X/binary>>, Uri)
    end.
+
 
 %%
 %%
