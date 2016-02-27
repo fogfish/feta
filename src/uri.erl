@@ -33,7 +33,7 @@
 %%     
 %%
 %% @todo
-%%   * espace works badly when URI is copied (proper escaping)
+%%   * escape works badly when URI is copied (proper escaping)
 -module(uri).
 
 -export([
@@ -64,19 +64,13 @@
    get/2,
    set/3,
    check/2,
-   % uri template function
-   template/1, 
    % helper functions
-   to_binary/1,
    s/1,
    c/1,
    urn/2,
    unescape/1, 
    escape/1,
-   aton/1,
-   % deprecated
-   add/3,
-   match/2
+   aton/1
 ]).
 
 -export_type([uri/0, urn/0]).
@@ -96,18 +90,10 @@
    anchor= undefined :: binary() 
 }).
 
-%% @depricated
--define(USER,  1).
--define(HOST,  2).
--define(PORT,  3).
--define(PATH,  4).
--define(QUERY, 5).
--define(FRAG,  6).
-
 %% query operation
 -define(COMPARE, [<<$=, $<>>, <<$>, $=>>, <<$>>>, <<$<>>, <<$=>>]).
--define(is_uri(X),  (X =:= uri orelse X =:= urn orelse X =:= turi)).
--define(is_url(X),  (X =:= uri orelse X =:= turi)).
+-define(is_uri(X),  (X =:= uri orelse X =:= urn)).
+-define(is_url(X),  (X =:= uri)).
 -define(is_urn(X),   X =:= urn).
 %%
 %% parses URI into tuple, fails with badarg if invalid URI
@@ -127,8 +113,8 @@ new(Uri)
                   [S] ->  {urn, S, Path};
                    S  ->  {urn, S, Path}
                end;
-            [Path] ->
-               {urn, undefined, Path}
+            [Schema] ->
+               {urn, Schema, <<>>}
          end;
       {Schema, UVal} ->
          {uri, Schema, UVal}
@@ -286,8 +272,6 @@ segments({_, _, #uval{path=Path}}) ->
       [_ | Segs] -> Segs
    end;
 
-segments({turi, _, {_, _, Segments}}) ->
-   Segments;
 segments({urn,  _, undefined}) ->
    undefined;
 segments({urn,  _, Path}) ->
@@ -509,12 +493,6 @@ check(List, Uri) ->
 %%%------------------------------------------------------------------
 
 %%
-%% convert uri to binary
-%% @depricated
-to_binary(Uri) ->
-   uri:s(Uri).
-
-%%
 %%
 c(Uri) ->
    binary_to_list(uri:s(Uri)).
@@ -723,149 +701,6 @@ aton(IP)
  when is_binary(IP) ->
    aton(scalar:c(IP)).
 
-
-
-%%%------------------------------------------------------------------
-%%%
-%%% template
-%%%
-%%%------------------------------------------------------------------   
-
-%%
-%% make uri template
-template(TUri)
- when is_list(TUri) orelse is_binary(TUri) ->
-   Uri = uri:new(TUri),
-   {turi, uri:schema(Uri), {uri:host(Uri), uri:port(Uri), uri:segments(Uri)}};
-
-template({turi, _, _}=TUri) ->
-   TUri.
-
-%%
-%% match uri to template
-match({uri, _, _}=Uri, {turi, _, _}=TUri) ->
-   match_segments(Uri, TUri,
-      match_port(Uri, TUri,
-         match_host(Uri, TUri,
-            match_schema(Uri, TUri, true)
-         )
-      )
-   );
-
-match(Uri, TUri) ->
-   match(uri:new(Uri), uri:template(TUri)).
-
-%%
-match_schema({uri, _, _}=Uri, {turi, Schema, _}, Acc) ->
-   match_acc(Acc, match_token(uri:schema(Uri), Schema)).
-
-%%
-match_host({uri, _, _}=Uri, {turi, _, {Host, _, _}}, Acc) ->
-   match_acc(Acc, match_token(uri:host(Uri), Host)).
-
-%%
-match_port({uri, _, _}, {turi, _, {_, undefined, _}}, Acc) ->
-   Acc;
-match_port({uri, _, _}=Uri, {turi, _, {_, Port, _}}, Acc) ->
-   match_acc(Acc, match_token(uri:port(Uri), Port)).
-
-%%
-match_segments({uri, _, _}=Uri, {turi, _, {_, _, Segments}}, Acc) ->
-   match_segments(uri:segments(Uri), Segments, Acc);
-
-match_segments(_, [<<$*>>], Acc) ->
-   match_acc(Acc, true);
-
-match_segments([A | Atail], [B | Btail], Acc) ->
-   match_segments(Atail, Btail, match_acc(Acc, match_token(A, B)));
-
-match_segments([], [], Acc) ->
-   Acc;
-
-match_segments([], undefined, Acc) ->
-   Acc;
-match_segments(undefined, [], Acc) ->
-   Acc;
-match_segments(undefined, undefined, Acc) ->
-   Acc;
-match_segments(_A, _B, _) ->
-   false.
-
-%%   
-%% match individual token
-match_token(_Token, Lit)
- when Lit =:= <<$*>> orelse Lit =:= '*' ->
-   true;
-
-match_token(undefined, undefined) ->
-   true;
-
-match_token(undefined, _) ->
-   false;
-
-match_token(_, undefined) ->
-   false;
-
-match_token(_Token, Lit)
- when Lit =:= <<$_>> orelse Lit =:= '_' ->
-   true;
-
-match_token(Token,  <<$:, Key/binary>>) ->
-   {Key, Token};
-
-match_token(Token, Lit) ->
-   scalar:c(Token) =:= scalar:c(Lit).
-
-%%
-%% accumulate match results
-match_acc(false, _) ->
-   false;
-match_acc(_, false) ->
-   false;
-match_acc(true, {_, _}=Acc) ->
-   [Acc];
-match_acc(true, Acc) ->
-   Acc;
-match_acc(List, {_,_}=Acc) ->
-   [Acc | List];
-match_acc(List, _Acc) ->
-   List.
-
-
-
-%%%------------------------------------------------------------------
-%%%
-%%% deprecated
-%%%
-%%%------------------------------------------------------------------
-
-%%
-%% add(Item, V, Uri) -> NUri
-%%
-%% add path token to uri
-add(path, V, {uri, _, _}=Uri) when is_binary(V) ->
-   case uri:get(path, Uri) of
-      X when X =:= <<$/>> orelse X =:= undefined -> 
-         uri:set(path, <<$/, V/binary>>, Uri);
-      Path   ->
-         case binary:last(Path) of
-            $/ -> 
-               uri:set(path, <<Path/binary, V/binary>>, Uri);
-            _  ->
-               uri:set(path, <<Path/binary, $/, V/binary>>, Uri)
-         end
-   end;
-add(Item, V, {uri, _, _}=Uri) when is_list(V) ->
-   case io_lib:printable_unicode_list(V) of
-      true  -> 
-         add(Item, list_to_binary(V), Uri);
-      false -> 
-         lists:foldl(fun(X, Acc) -> uri:add(Item, X, Acc) end, Uri, V)
-   end;
-add(Item, V, {uri, _, _}=Uri) when is_tuple(V)->
-   add(Item, tuple_to_list(V), Uri);
-add(Item, V, {uri, _, _}=Uri) when is_atom(V) ->
-   add(Item, atom_to_binary(V, utf8), Uri).
 
 %%%------------------------------------------------------------------
 %%%
