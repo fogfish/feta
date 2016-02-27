@@ -287,7 +287,7 @@ segments(Val, {uri, _, _} = Uri)
 
 segments(Val, {urn, _, _} = Uri)
  when is_list(Val) ->
-   uri:path(iolist_to_binary([hd(Val) | [[$:, escape(X)] || X <- tl(Val)]]), Uri);
+   uri:path(iolist_to_binary([escape(hd(Val)) | [[$:, escape(X)] || X <- tl(Val)]]), Uri);
 
 
 segments(Val, Uri)
