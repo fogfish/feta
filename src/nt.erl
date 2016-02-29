@@ -222,6 +222,9 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
    tempus:decode("%Y-%m-%dT%H:%M:%S", X);
 
+decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
+   tempus:decode("%Y", X);    
+
 decode_l(<<"http://www.w3.org/2001/XMLSchema#integer">>, X) ->
    scalar:i(X);
 

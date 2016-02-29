@@ -347,7 +347,7 @@ cancel(T) ->
 decode(Val) ->
    decode(?ISO8601, Val).
 decode(Fmt, Val) ->
-   decode(scalar:c(Fmt), scalar:c(Val), {{0,0,0},{0,0,0}}).
+   decode(scalar:c(Fmt), scalar:c(Val), {{0,1,1},{0,0,0}}).
 
 %% Day 
 %% %a  An abbreviated textual representation of the day Sun through Sat
