@@ -238,15 +238,15 @@ decode_l(_, X) ->
 
 %%
 %%
-date_time_format(<<$T, _/binary>>, L) when size(L) < 6 -> "T%H";
-date_time_format(<<$T, _/binary>>, L) when size(L) < 9 -> "T%H:%M";
-date_time_format(<<$T, _/binary>>, _)                  -> "T%H:%M:%S";
-date_time_format(_, L) when size(L) <  7 -> "%Y";
-date_time_format(_, L) when size(L) < 10 -> "%Y-%m";
-date_time_format(_, L) when size(L) < 11 -> "%Y-%m-%d";
-date_time_format(_, L) when size(L) < 16 -> "%Y-%m-%dT%H";
-date_time_format(_, L) when size(L) < 19 -> "%Y-%m-%dT%H:%M";
-date_time_format(_, _)                   -> "%Y-%m-%dT%H:%M:%S".
+date_time_format(<<$T, _/binary>>, L) when L < 6 -> "T%H";
+date_time_format(<<$T, _/binary>>, L) when L < 9 -> "T%H:%M";
+date_time_format(<<$T, _/binary>>, _)            -> "T%H:%M:%S";
+date_time_format(_, L) when L <  7 -> "%Y";
+date_time_format(_, L) when L < 10 -> "%Y-%m";
+date_time_format(_, L) when L < 11 -> "%Y-%m-%d";
+date_time_format(_, L) when L < 16 -> "%Y-%m-%dT%H";
+date_time_format(_, L) when L < 19 -> "%Y-%m-%dT%H:%M";
+date_time_format(_, _)             -> "%Y-%m-%dT%H:%M:%S".
 
 
 %%%------------------------------------------------------------------
