@@ -220,6 +220,11 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
    tempus:decode("%Y-%m-%d", X);
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X)
+ when size(X) < 6 ->
+   % e.g. T11
+   tempus:decode("T%H", X);
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X)
  when size(X) < 9 ->
    % e.g. T11:59Z
    tempus:decode("T%H:%M", X);
