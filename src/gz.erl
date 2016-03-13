@@ -25,5 +25,5 @@ stream(Stream, Z) ->
       IOList  ->
          erlang:iolist_to_binary(IOList)
    end,
-   stream:new(Head, fun() -> stream(stdio:tail(Stream), Z) end).
+   stdio:new(binary:copy(Head), fun() -> stream(stdio:tail(Stream), Z) end).
 

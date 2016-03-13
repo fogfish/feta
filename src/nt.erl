@@ -217,13 +217,22 @@ decode_o(_) ->
 %%
 %% decode literal data type
 decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
-   tempus:decode("%Y-%m-%d", X);
+   tempus:iso8601(X);
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
    tempus:iso8601(X); 
 
+decode_l(<<"http://www.w3.org/2001/XMLSchema#gYearMonth">>, X) ->
+   tempus:iso8601(X); 
+
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
-   tempus:decode("%Y", X);    
+   scalar:i(X);    
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#gMonth">>, X) ->
+   scalar:i(X);    
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#gDay">>, X) ->
+   scalar:i(X);
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#integer">>, X) ->
    scalar:i(X);

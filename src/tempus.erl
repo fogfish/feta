@@ -406,15 +406,26 @@ at(X,   I)
 at(_,   _) ->
    $Z.
 
-
 decode_iso8601_date(<<$-, Y:4/binary, $-, M:2/binary, $-, D:2/binary>>) ->
-   {-1 * scalar:i(Y), scalar:i(M), scalar:i(D)};
-decode_iso8601_date(<<$-, Y:4/binary, M:2/binary, D:2/binary>>) ->
    {-1 * scalar:i(Y), scalar:i(M), scalar:i(D)};
 decode_iso8601_date(<<Y:4/binary, $-, M:2/binary, $-, D:2/binary>>) ->
    {scalar:i(Y), scalar:i(M), scalar:i(D)};
+
+decode_iso8601_date(<<$-, Y:4/binary, $-, M:2/binary>>) ->
+   {-1 * scalar:i(Y), scalar:i(M), 1};
+decode_iso8601_date(<<Y:4/binary, $-, M:2/binary>>) ->
+   {scalar:i(Y), scalar:i(M), 1};
+
+decode_iso8601_date(<<$-, Y:4/binary, M:2/binary, D:2/binary>>) ->
+   {-1 * scalar:i(Y), scalar:i(M), scalar:i(D)};
 decode_iso8601_date(<<Y:4/binary, M:2/binary, D:2/binary>>) ->
    {scalar:i(Y), scalar:i(M), scalar:i(D)};
+
+decode_iso8601_date(<<$-, Y:4/binary>>) ->
+   {-1 * scalar:i(Y), 1, 1};
+decode_iso8601_date(<<Y:4/binary>>) ->
+   {scalar:i(Y), 1, 1};
+
 decode_iso8601_date(<<>>) ->
    {0, 1, 1}.
 
