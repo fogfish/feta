@@ -418,14 +418,14 @@ decode_iso8601_date(<<Y:4/binary, M:2/binary, D:2/binary>>) ->
 decode_iso8601_date(<<>>) ->
    {0, 1, 1}.
 
-decode_iso8601_time(<<H:2/binary, $:, M:2/binary, $:, S:2/binary, $., _:3/binary>>) ->
+decode_iso8601_time(<<H:2/binary, $:, M:2/binary, $:, S:2/binary, $., _/binary>>) ->
    {scalar:i(H), scalar:i(M), scalar:i(S)};
 decode_iso8601_time(<<H:2/binary, $:, M:2/binary, $:, S:2/binary>>) ->
    {scalar:i(H), scalar:i(M), scalar:i(S)};
 decode_iso8601_time(<<H:2/binary, $:, M:2/binary>>) ->
    {scalar:i(H), scalar:i(M), 0};
 
-decode_iso8601_time(<<H:2/binary, M:2/binary, S:2/binary, $., _:3/binary>>) ->
+decode_iso8601_time(<<H:2/binary, M:2/binary, S:2/binary, $., _/binary>>) ->
    {scalar:i(H), scalar:i(M), scalar:i(S)};
 decode_iso8601_time(<<H:2/binary, M:2/binary, S:2/binary>>) ->
    {scalar:i(H), scalar:i(M), scalar:i(S)};
