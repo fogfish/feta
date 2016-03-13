@@ -219,23 +219,10 @@ decode_o(_) ->
 decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
    tempus:decode("%Y-%m-%d", X);
 
-decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X)
- when size(X) < 6 ->
-   % e.g. T11
-   tempus:decode("T%H", X);
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X)
- when size(X) < 9 ->
-   % e.g. T11:59Z
-   tempus:decode("T%H:%M", X);
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X) ->
-   % e.g. T11:59:00Z
-   tempus:decode("T%H:%M:%S", X);
-
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
-   % e.g. 2007-08-24T01:50:56Z
-   tempus:decode("%Y-%m-%dT%H:%M:%S", X);
+   %% date time formatting is very flexible at some databases
+   %% adaptive mask selection is required
+   tempus:decode(date_time_format(X, size(X)), X); 
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
    tempus:decode("%Y", X);    
@@ -248,6 +235,18 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#string">>, X) ->
 
 decode_l(_, X) ->
    scalar:decode(X).
+
+%%
+%%
+date_time_format(<<$T, _/binary>>, L) when size(L) < 6 -> "T%H";
+date_time_format(<<$T, _/binary>>, L) when size(L) < 9 -> "T%H:%M";
+date_time_format(<<$T, _/binary>>, _)                  -> "T%H:%M:%S";
+date_time_format(_, L) when size(L) <  7 -> "%Y";
+date_time_format(_, L) when size(L) < 10 -> "%Y-%m";
+date_time_format(_, L) when size(L) < 11 -> "%Y-%m-%d";
+date_time_format(_, L) when size(L) < 16 -> "%Y-%m-%dT%H";
+date_time_format(_, L) when size(L) < 19 -> "%Y-%m-%dT%H:%M";
+date_time_format(_, _)                   -> "%Y-%m-%dT%H:%M:%S".
 
 
 %%%------------------------------------------------------------------
