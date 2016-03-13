@@ -14,10 +14,13 @@
 %%   limitations under the License.
 %%
 %% @description
-%%   time utility
+%%   date/time utility for Erlang. It uses build-in time-stamp triplet as base
+%%   type to carry on date-time.
+%%    
 %%
 %% @todo
 %%   * optimize arithmetic
+%%   * how to handle ac / bc correctly
 %%
 -module(tempus).
 -include("include/macro.hrl").
@@ -27,6 +30,7 @@
    u/1,
    m/1,
    s/1,
+   d/1,
 
    %% micro-, milli-, second to time
    t/2,
@@ -46,29 +50,30 @@
    cancel/1,
 
    % time convert utility
-   decode/1
+   iso8601/1
+  ,decode/1
   ,decode/2
   ,encode/1
   ,encode/2
 ]).
 -export_type([t/0, timer/0]).
 
-%% time stamp
--type(t()     :: {integer(), integer(), integer()}).
--type(timer() :: {timer | event, integer(), reference()}).
-
+%% data types
+-type(t()        :: {integer(), integer(), integer()}).
+-type(timer()    :: {timer | event, integer(), reference()}).
 
 %% number of sec to Unix Epoch
 -define(UNX_EPOCH, 62167219200).
 -define(BASE,          1000000).
 -define(BASE3,            1000).
-
+-define(T0,  {{0,1,1},{0,0,0}}).
 
 %%
-%% time to micro-, milli-, second
+%% time to micro-, milli-, second or date-time
 -spec(u/1 :: (t()) -> integer()).
 -spec(m/1 :: (t()) -> integer()).
 -spec(s/1 :: (t()) -> integer()).
+-spec(d/1 :: (t()) -> calendar:datetime()).
 
 u({A2, A1, A0}) ->
    A0 + ?BASE * (A1 + ?BASE * A2);
@@ -88,11 +93,22 @@ s(X)
  when is_integer(X) ->
    X.
 
+d({A2, A1, _A0}) ->
+   case A1 + ?BASE * A2 + ?UNX_EPOCH of
+      Ts when Ts >= 0 ->
+         calendar:gregorian_seconds_to_datetime(Ts);
+      _ ->
+         Sec = ?UNX_EPOCH - ?BASE * A2 - A1,
+         {{Y, M, D},  T} = calendar:gregorian_seconds_to_datetime(Sec),
+         {{-Y, M, D}, T}
+   end;
+d({{_, _, _}, {_, _, _}}=X) ->
+   X.
+
 
 %%
 %% micro-, milli-, second to time
--spec(t/2 :: (u | m |s, integer()) -> t()).
-
+-spec(t/2 :: (u | m | s | d, integer()) -> t()).
 
 t(u, X) 
  when is_integer(X) ->
@@ -120,9 +136,19 @@ t(s, X)
 t(_, {_,_,_}=X) ->
    X;
 
-t(s, {{_, _, _}, {_, _, _}}=Date) ->
+t(d, {{Y, _, _}, {_, _, _}}=Date)
+ when Y >= 0 ->
    Sec = calendar:datetime_to_gregorian_seconds(Date) - ?UNX_EPOCH,
-   {Sec div ?BASE, Sec rem ?BASE, 0}.
+   {Sec div ?BASE, Sec rem ?BASE, 0};
+t(d, {{Y, M, D}, {_, _, _}=T})
+ when Y  < 0 ->
+   Sec = -1 * calendar:datetime_to_gregorian_seconds({{-1 * Y, M, D}, T}) - ?UNX_EPOCH,   
+   {Sec div ?BASE, Sec rem ?BASE, 0};
+t(d, X)
+ when is_integer(X) ->
+   t(s, X);
+t(d, {_, _, _}=X) ->
+   X.
 
 
 %%
@@ -338,6 +364,92 @@ cancel(T) ->
 %%% time convert
 %%%
 %%%------------------------------------------------------------------
+
+%%
+%%
+iso8601(X)
+ when is_binary(X) orelse is_list(X) ->
+   decode_iso8601(scalar:s(X)).   
+
+decode_iso8601(X) ->
+   [Xd | T] = split(X, <<$T>>),
+   [Xt | Z] = split(T, [<<$Z>>, <<$+>>, <<$->>]),
+   Ts       = t(d, {decode_iso8601_date(Xd), decode_iso8601_time(Xt)}),
+   case at(T, size(Xt)) of
+      $Z -> 
+         Ts;
+      $+ ->
+         sub(Ts, decode_iso8601_tz(Z));
+      $- ->
+         add(Ts, decode_iso8601_tz(Z))
+   end.
+
+%%
+%%
+split([], _) ->
+   [<<>>];
+split([X], Pat) ->
+   split(X, Pat);
+split(X, Pat)
+ when is_binary(X) ->
+   binary:split(X, Pat).
+
+%%
+%%
+at([<<>>],  _) ->
+   $Z;
+at([X], I) ->
+   at(X, I);
+at(X,   I)
+ when I < size(X) ->
+   binary:at(X, I);
+at(_,   _) ->
+   $Z.
+
+
+decode_iso8601_date(<<$-, Y:4/binary, $-, M:2/binary, $-, D:2/binary>>) ->
+   {-1 * scalar:i(Y), scalar:i(M), scalar:i(D)};
+decode_iso8601_date(<<$-, Y:4/binary, M:2/binary, D:2/binary>>) ->
+   {-1 * scalar:i(Y), scalar:i(M), scalar:i(D)};
+decode_iso8601_date(<<Y:4/binary, $-, M:2/binary, $-, D:2/binary>>) ->
+   {scalar:i(Y), scalar:i(M), scalar:i(D)};
+decode_iso8601_date(<<Y:4/binary, M:2/binary, D:2/binary>>) ->
+   {scalar:i(Y), scalar:i(M), scalar:i(D)};
+decode_iso8601_date(<<>>) ->
+   {0, 1, 1}.
+
+decode_iso8601_time(<<H:2/binary, $:, M:2/binary, $:, S:2/binary, $., _:3/binary>>) ->
+   {scalar:i(H), scalar:i(M), scalar:i(S)};
+decode_iso8601_time(<<H:2/binary, $:, M:2/binary, $:, S:2/binary>>) ->
+   {scalar:i(H), scalar:i(M), scalar:i(S)};
+decode_iso8601_time(<<H:2/binary, $:, M:2/binary>>) ->
+   {scalar:i(H), scalar:i(M), 0};
+
+decode_iso8601_time(<<H:2/binary, M:2/binary, S:2/binary, $., _:3/binary>>) ->
+   {scalar:i(H), scalar:i(M), scalar:i(S)};
+decode_iso8601_time(<<H:2/binary, M:2/binary, S:2/binary>>) ->
+   {scalar:i(H), scalar:i(M), scalar:i(S)};
+decode_iso8601_time(<<H:2/binary, M:2/binary>>) ->
+   {scalar:i(H), scalar:i(M), 0};
+
+decode_iso8601_time(<<H:2/binary>>) ->
+   {scalar:i(H), 0, 0};
+
+decode_iso8601_time(<<>>) ->
+   {0, 0, 0}.
+
+decode_iso8601_tz([X]) ->
+   decode_iso8601_tz(X);
+decode_iso8601_tz(<<$Z>>) ->
+   0;
+decode_iso8601_tz(<<>>) ->
+   0;
+decode_iso8601_tz(<<H:2/binary, $:, M:2/binary>>) ->
+   scalar:i(H) * 3600 + scalar:i(M) * 60;
+decode_iso8601_tz(<<H:2/binary,     M:2/binary>>) ->
+   scalar:i(H) * 3600 + scalar:i(M) * 60;
+decode_iso8601_tz(<<H:2/binary>>) ->
+   scalar:i(H) * 3600.
 
 %%
 %% parses literal date time
@@ -758,127 +870,4 @@ fmonth_of_year(9) -> "September";
 fmonth_of_year(10) -> "October";
 fmonth_of_year(11) -> "November";
 fmonth_of_year(12) -> "December".
-
-
-
-
-
-
-
-% %%
-% %% current time in seconds
-% now() -> 
-%    sec().
-
-% %%
-% %% current time in seconds
-% sec() -> 
-%    sec(os:timestamp()).
-
-% %%
-% %% convert time to second
-% sec({Msec, Sec, _Usec}) ->
-%    % erlang:now
-%    Msec * 1000000 + Sec;
-% sec({{_,_,_},{_,_,_}}=Date) ->
-%    % erlang date/time
-%    calendar:datetime_to_gregorian_seconds(Date) - ?UNX_EPOCH;
-% sec(Sec)
-%  when is_list(Sec), length(Sec) =:= 8 ->
-%    % any 8-length time is considered to be YYYYMMDD format
-%    % 1970 - 1974 dates has to be requested as iso8601 or use scalar utility
-%    sec(parser:iso8601(Sec));
-% sec(T)
-%  when is_list(T) ->
-%    case string:chr(T, $T) of
-%       0 -> 
-%          case scalar:decode(T) of
-%             X when is_list(X) -> sec(list_to_existing_atom(X));
-%             X -> sec(X)
-%          end;
-%       _ -> sec(parser:iso8601(T))
-%    end;
-% sec(T)
-%  when is_binary(T) ->
-%    sec(binary_to_list(T));
-% sec(today) ->
-%    86400;
-% sec(day)   ->
-%    86400;
-% sec(week)  -> 
-%    7  * 86400;
-% sec(month) -> 
-%    30 * 86400;
-% sec(year)  -> 
-%    365 * 86400;
-% sec(hour)  ->
-%     3600;
-% sec(Sec)
-%  when is_float(Sec) ->
-%    sec(erlang:round(Sec));
-% sec(Sec)
-%  when is_integer(Sec), Sec < 9999999999 ->
-%    Sec; 
-% sec(Milli)
-%  when is_integer(Milli) ->
-%    % given time value exceeds max allowed Sec value
-%    Milli div 1000.
-
-% %%
-% %% current time in milliseconds   
-% milli() ->
-%    milli(os:timestamp()).
-
-% milli({Msec, Sec, Usec}) ->
-%    (Msec * 1000000 + Sec) * 1000 + Usec div 1000.
-
-% %%
-% %% current time in microseconds
-% micro() ->
-%    micro(os:timestamp()).
-
-% micro({Msec, Sec, Usec}) ->
-%    (Msec * 1000000 + Sec) * 1000000 + Usec.
-
-% %%%------------------------------------------------------------------
-% %%%
-% %%% transform
-% %%%
-% %%%------------------------------------------------------------------
-
-% %%
-% %% increase time by T seconds
-% inc(T) ->
-%    inc(os:timestamp(), sec(T)).
-
-% inc({Msec, Sec, Usec}, T)
-%  when is_integer(T) ->
-%    case Sec + T of
-%       X when X =< 1000000 ->
-%          {Msec, X, Usec};
-%       X ->
-%          {Msec + (X div 1000000), X rem 1000000, Usec}
-%    end.
-
-% %%
-% %% increase time by T seconds
-% dec(T) ->
-%    dec(os:timestamp(), sec(T)).
-
-% dec({Msec, Sec, Usec}, T)
-%  when is_integer(T) ->
-%    case Sec - T of
-%       X when X >= 0 ->
-%          {Msec, X, Usec};
-%       X ->
-%          {Msec - 1, 1000000 + X, Usec}
-%    end.
-
-
-% %%%------------------------------------------------------------------
-% %%%
-% %%% private
-% %%%
-% %%%------------------------------------------------------------------
-
 

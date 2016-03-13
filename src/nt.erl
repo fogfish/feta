@@ -220,9 +220,7 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
    tempus:decode("%Y-%m-%d", X);
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
-   %% date time formatting is very flexible at some databases
-   %% adaptive mask selection is required
-   tempus:decode(date_time_format(X, size(X)), X); 
+   tempus:iso8601(X); 
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
    tempus:decode("%Y", X);    
@@ -235,18 +233,6 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#string">>, X) ->
 
 decode_l(_, X) ->
    scalar:decode(X).
-
-%%
-%%
-date_time_format(<<$T, _/binary>>, L) when L < 6 -> "T%H";
-date_time_format(<<$T, _/binary>>, L) when L < 9 -> "T%H:%M";
-date_time_format(<<$T, _/binary>>, _)            -> "T%H:%M:%S";
-date_time_format(_, L) when L <  7 -> "%Y";
-date_time_format(_, L) when L < 10 -> "%Y-%m";
-date_time_format(_, L) when L < 11 -> "%Y-%m-%d";
-date_time_format(_, L) when L < 16 -> "%Y-%m-%dT%H";
-date_time_format(_, L) when L < 19 -> "%Y-%m-%dT%H:%M";
-date_time_format(_, _)             -> "%Y-%m-%dT%H:%M:%S".
 
 
 %%%------------------------------------------------------------------
