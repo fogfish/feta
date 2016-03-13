@@ -219,7 +219,17 @@ decode_o(_) ->
 decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
    tempus:decode("%Y-%m-%d", X);
 
+decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X)
+ when size(X) < 9 ->
+   % e.g. T11:59Z
+   tempus:decode("T%H:%M", X);
+
+decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, <<$T, _/binary>> = X) ->
+   % e.g. T11:59:00Z
+   tempus:decode("T%H:%M:%S", X);
+
 decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
+   % e.g. 2007-08-24T01:50:56Z
    tempus:decode("%Y-%m-%dT%H:%M:%S", X);
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->

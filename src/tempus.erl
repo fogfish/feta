@@ -485,7 +485,7 @@ decode([H | Tail], [H | Val], Acc) ->
    decode(Tail, Val, Acc);
 
 decode([], _Val, {{Y, _, _}, _}=Acc)
- when Y > 0 ->
+ when Y >= 0 ->
    Sec = calendar:datetime_to_gregorian_seconds(Acc) - ?UNX_EPOCH,
    {Sec div ?BASE, Sec rem ?BASE, 0};
 decode([], _Val, {{Y,M,D}, T}) ->
