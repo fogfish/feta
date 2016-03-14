@@ -226,7 +226,7 @@ decode_l(<<"http://www.w3.org/2001/XMLSchema#gYearMonth">>, X) ->
    tempus:iso8601(X); 
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
-   scalar:i(X);    
+   tempus:iso8601(X);    
 
 decode_l(<<"http://www.w3.org/2001/XMLSchema#gMonth">>, X) ->
    scalar:i(X);    

@@ -16,6 +16,7 @@ stream(Stream) ->
 
 stream({},     Z) ->
    zlib:inflateEnd(Z),
+   zlib:close(Z),
    {};
 
 stream(Stream, Z) ->
