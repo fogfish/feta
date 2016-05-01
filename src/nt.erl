@@ -46,14 +46,18 @@
 ]).
 
 %%
-%% types
--type(triple() :: {binary(), binary(), binary()}).
+%% data types
+-type spo()  :: {lit(), lit(), lit()}.
+-type lit()  :: {type(), value()}.
+-type type() :: urn | uri | binary().
+-type value():: binary().
 
 %%
 %% parser state
 -record(nt, {
    recbuf = <<>> :: binary() %% internal receive buffer
 }).
+
 
 %% grammar  
 -define(WS,  [<<$ >>, <<$\t>>, <<$\n>>]).
@@ -97,7 +101,7 @@ stream([Head|Tail], Stream, State) ->
 %%
 %% decode triple stream
 %% returns parsed values and new parser state
--spec(decode/2 :: (binary(), #nt{}) -> {[triple()], #nt{}}).
+-spec(decode/2 :: (binary(), #nt{}) -> {[spo()], #nt{}}).
 
 decode(Chunk, #nt{recbuf = <<>>}=State)
  when is_binary(Chunk) ->
@@ -127,19 +131,12 @@ decode_triple(<<$#, X0/binary>>) ->
 
 decode_triple(X0) ->
    try
-      {S, X1}  = decode_s(X0),
-      {P, X2}  = decode_p(X1),
-      {Nt, X3} = case decode_o(X2) of
-         {{url, _} = O, X} ->
-            {{S, P, O}, X};
-         {{O, C}, X} ->
-            {{S, P, O, C}, X};
-         {O, X} ->
-            {{S,P,O}, X}
-      end,
+      {S, X1} = decode_s(X0),
+      {P, X2} = decode_p(X1),
+      {O, X3} = decode_o(X2),
       case binary:split(X3, ?EOL) of
          [_, X4] ->
-            {Nt, X4};
+            {{S, P, O}, X4};
          _       ->
             undefined
       end
@@ -151,13 +148,18 @@ decode_triple(X0) ->
 %%
 decode_s(X) ->
    case split(X, ?WS) of
+      %% named node
       {<<$_, $:, Y/binary>>, Tail} ->
-         {{url, <<"urn:", Y/binary>>}, Tail};
-      {<<>>,_Tail} ->
+         {{urn, <<"urn:", Y/binary>>}, Tail};
+
+      %% not enough data to parse statement
+      {<<>>, _Tail} ->
          throw(badarg);
+
+      %% Node identity is uri
       {Head, Tail} ->
-         {Url,    _} = unquote(Head, <<$<>>, <<$>>>),
-         {{url, Url}, Tail}
+         {Uri,    _} = unquote(Head, <<$<>>, <<$>>>),
+         {{uri, Uri}, Tail}
    end.
 
 %%
@@ -174,12 +176,12 @@ decode_p(<<$", _/binary>> = X) ->
 decode_p(X) ->
    case split(X, ?WS) of
       {<<$_, $:, Y/binary>>, Tail} ->
-         {{url, <<"urn:", Y/binary>>}, Tail};
+         {{urn, <<"urn:", Y/binary>>}, Tail};
       {<<>>,_Tail} ->
          throw(badarg);
       {Head, Tail} -> 
-         {Url,     _} = unquote(Head, <<$<>>, <<$>>>),
-         {{url, Url},  Tail}
+         {Uri,     _} = unquote(Head, <<$<>>, <<$>>>),
+         {{uri, Uri},  Tail}
    end.
 
 %%
@@ -188,60 +190,31 @@ decode_o(<<$_, $:, Y/binary>>) ->
    {Head, Tail} = split(Y, ?WS),
    case split(Head, [<<$@>>]) of 
       {_,  <<>>} ->
-         {{url, <<"urn:", Head/binary>>}, Tail};
+         {{urn, <<"urn:", Head/binary>>}, Tail};
       {Urn, Tag} ->
-         {{{url, <<"urn:", Urn/binary>>}, Tag}, Tail}
+         {{Tag, <<"urn:", Urn/binary>>}, Tail}
    end;
 
 decode_o(<<$<, _/binary>>=X) ->
-   {Head, Tail} = unquote(X, <<$<>>, <<$>>>),
-   {{url, Head}, Tail};
+   {Uri, Tail} = unquote(X, <<$<>>, <<$>>>),
+   {{uri, Uri}, Tail};
 
 decode_o(<<$", _/binary>>=X) ->
    case unquote(X, <<$">>, <<$">>) of
       {Head, <<$@, Rest/binary>>} ->
          {Lang, Tail} = skip(Rest, ?EOL),
-         {{Head, Lang}, Tail};
+         {{Lang, Head}, Tail};
 
       {Head, <<$^, $^, Rest/binary>>} ->
          {Type, Tail} = unquote(Rest, <<$<>>, <<$>>>),
-         {decode_l(Type, Head),  Tail};
+         {{Type, Head},  Tail};
 
       {_Head, _Tail} = Result ->
          Result
-   end;
+   end; 
 
 decode_o(_) ->
    throw(badarg).
-
-%%
-%% decode literal data type
-decode_l(<<"http://www.w3.org/2001/XMLSchema#date">>, X) ->
-   tempus:iso8601(X);
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#dateTime">>, X) ->
-   tempus:iso8601(X); 
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#gYearMonth">>, X) ->
-   tempus:iso8601(X); 
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#gYear">>, X) ->
-   tempus:iso8601(X);    
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#gMonth">>, X) ->
-   scalar:i(X);    
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#gDay">>, X) ->
-   scalar:i(X);
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#integer">>, X) ->
-   scalar:i(X);
-
-decode_l(<<"http://www.w3.org/2001/XMLSchema#string">>, X) ->
-   X;
-
-decode_l(_, X) ->
-   scalar:decode(X).
 
 
 %%%------------------------------------------------------------------
@@ -325,19 +298,9 @@ is_escaped(_, _, _, I) ->
    (I - 1) rem 2 == 1.
 
 
-% unescape(Val) ->
-%    erlang:iolist_to_binary(unescape1(Val)).
-
-% unescape1(Val) ->
-%    case binary:split(Val, <<16#f0>>) of
-%       [Head, <<H:8, T/binary>>] ->
-%          [Head, (16#f0 bxor H) | unescape1(T)];
-%       List ->
-%          List
-%    end.
-
-
-
-
-
+%%%------------------------------------------------------------------
+%%%
+%%% built-in functions
+%%%
+%%%------------------------------------------------------------------
 
