@@ -49,7 +49,7 @@
 %% data types
 -type spo()  :: {lit(), lit(), lit()}.
 -type lit()  :: {type(), value()}.
--type type() :: urn | uri | binary().
+-type type() :: uri | binary().
 -type value():: binary().
 
 %%
@@ -150,7 +150,7 @@ decode_s(X) ->
    case split(X, ?WS) of
       %% named node
       {<<$_, $:, Y/binary>>, Tail} ->
-         {{urn, <<"urn:", Y/binary>>}, Tail};
+         {{uri, <<"urn:", Y/binary>>}, Tail};
 
       %% not enough data to parse statement
       {<<>>, _Tail} ->
@@ -176,7 +176,7 @@ decode_p(<<$", _/binary>> = X) ->
 decode_p(X) ->
    case split(X, ?WS) of
       {<<$_, $:, Y/binary>>, Tail} ->
-         {{urn, <<"urn:", Y/binary>>}, Tail};
+         {{uri, <<"urn:", Y/binary>>}, Tail};
       {<<>>,_Tail} ->
          throw(badarg);
       {Head, Tail} -> 
@@ -190,7 +190,7 @@ decode_o(<<$_, $:, Y/binary>>) ->
    {Head, Tail} = split(Y, ?WS),
    case split(Head, [<<$@>>]) of 
       {_,  <<>>} ->
-         {{urn, <<"urn:", Head/binary>>}, Tail};
+         {{uri, <<"urn:", Head/binary>>}, Tail};
       {Urn, Tag} ->
          {{Tag, <<"urn:", Urn/binary>>}, Tail}
    end;
