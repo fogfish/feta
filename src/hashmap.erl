@@ -196,7 +196,7 @@ fchunk(Fun, Acc, #hmap{bits=Bits, root=Root}) ->
 ht_fchunk(Pfx, Fun, Acc0, #chnk{depth=1, offset=Offs, inner=Inn}, Bits) ->
    Fun({<<Pfx/bits, Offs:Bits>>, Inn}, Acc0);
 
-ht_fchunk(Pfx, Fun, Acc0, #chnk{offset=nil, inner=Inn}, Bits) ->
+ht_fchunk(_Pfx, Fun, Acc0, #chnk{offset=nil, inner=Inn}, Bits) ->
    lists:foldl(
       fun(X, Acc) -> 
          ht_fchunk(<<>>, Fun, Acc, X, Bits) 
@@ -222,7 +222,7 @@ drop(Key, #hmap{root=Root}=T) ->
    }.
 
 %% recursive node remove
-ht_drop(D, Key,  Node, #hmap{bits=Bits})
+ht_drop(D, Key, _Node, #hmap{bits=Bits})
   when Bits * D =:= bit_size(Key) ->
    nil;
 
@@ -293,13 +293,13 @@ take_node(_Key, Offs, #chnk{count=Cnt, inner=Inn}=N) ->
 
 %%
 %% updated node
-push_node({Key, _}=El, #chnk{count=Cnt, inner=Inn}=Node) ->
+push_node({_Key, _}=El, #chnk{count=Cnt, inner=Inn}=Node) ->
    Node#chnk{
       count = Cnt + 1,
       inner = [El | Inn]
    };
 
-push_node(#chnk{offset=Offs, depth=Cd}=El, #chnk{depth=Pd, count=Cnt, inner=Inn}=Node) ->
+push_node(#chnk{offset=_Offs, depth=Cd}=El, #chnk{depth=Pd, count=Cnt, inner=Inn}=Node) ->
    Node#chnk{
       depth = max(Pd, Cd + 1),
       count = Cnt + 1,
@@ -335,18 +335,18 @@ split(#chnk{inner=Inn}=Node, _, #hmap{chnk=C})
 %% Fun/2 must return a new accumulator which is passed to the next call. 
 %% The function returns the final value of the accumulator. 
 %% Acc0 is returned if the tree is empty.
-fold(Fun, Acc0, #chnk{inner=Inn}=Node) ->
-   case Fun(Node, Acc0) of
-      skip        -> Acc0;
-      {skip, Acc} -> Acc;
-      Acc         ->
-         lists:foldl(
-            fun
-               ({_, #chnk{}=Sub}, A) -> fold(Fun, A, Sub); 
-               (Entity, A) -> Fun(Entity, A)
-            end,
-            Acc,
-            Inn
-         )
-   end.
+% fold(Fun, Acc0, #chnk{inner=Inn}=Node) ->
+%    case Fun(Node, Acc0) of
+%       skip        -> Acc0;
+%       {skip, Acc} -> Acc;
+%       Acc         ->
+%          lists:foldl(
+%             fun
+%                ({_, #chnk{}=Sub}, A) -> fold(Fun, A, Sub); 
+%                (Entity, A) -> Fun(Entity, A)
+%             end,
+%             Acc,
+%             Inn
+%          )
+%    end.
 

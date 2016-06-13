@@ -30,6 +30,7 @@
 -export([
    file/1
   ,file/2
+  ,file/3
 ]).
 
 -export_type([stream/0]).
@@ -107,6 +108,7 @@ list(_, _) ->
 %%    * {iobuf, integer()} - size of i/o buffer
 -spec(file/1 :: (list()) -> stdio:stream()).
 -spec(file/2 :: (list(), list()) -> stdio:stream()).
+-spec(file/3 :: (list(), list(), stdio:stream()) -> ok | {error, any()}).
 
 file(File) ->
    file(File, []).
@@ -114,20 +116,41 @@ file(File) ->
 file(File, Opts) ->
    Chunk = opts:val(iobuf, 64 * 1024, Opts),
    {ok, FD} = file:open(File, [raw, binary, read, {read_ahead, Chunk}]),
-   iostream(FD, Chunk).
+   istream(FD, Chunk).
+
+file(File, Opts, Stream) ->
+   Chunk = opts:val(iobuf, 64 * 1024, Opts),
+   {ok, FD} = file:open(File, [raw, binary, append, {delayed_write, Chunk, 5000}]),
+   ostream(FD, Stream).
 
 
-iostream(FD, IoBuf)
+%%
+istream(FD, IoBuf)
  when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
    case file:read(FD, IoBuf) of
       {ok, Chunk} ->
-         stdio:new(Chunk, fun() -> iostream(FD, IoBuf) end);
+         stdio:new(Chunk, fun() -> istream(FD, IoBuf) end);
       eof  ->
          file:close(FD),
          stdio:new();
       {error, Reason} ->
          file:close(FD),
          throw(Reason)
+   end.
+
+%%
+ostream(FD, {})
+ when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
+   file:close(FD);
+
+ostream(FD, Stream)
+ when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
+   case file:write(FD, stdio:head(Stream)) of
+      ok ->
+         ostream(FD, stdio:tail(Stream));
+      Error ->
+         file:close(FD),
+         Error
    end.
 
 

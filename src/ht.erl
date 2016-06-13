@@ -62,7 +62,7 @@
 -type(signature() :: {hash, integer(), [hash()]}).
 
 %% hash tree configuration
--define(HASH(X),  crypto:sha(X)).
+-define(HASH(X),  crypto:hash(sha, X)).
 -define(BITS,     160).
 -define(WIDTH,      6).
 -define(CAPACITY,   64).
