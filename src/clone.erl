@@ -28,9 +28,9 @@
 
 %%
 %% clone the node as slave
--spec(start/1 :: (atom()) -> {ok, node()} | {error, any()}).
--spec(start/2 :: (atom(), [atom()]) -> {ok, node()} | {error, any()}).
--spec(start/3 :: (atom(), [atom()], list()) -> {ok, node()} | {error, any()}).
+-spec start(atom()) -> {ok, node()} | {error, any()}.
+-spec start(atom(), [atom()]) -> {ok, node()} | {error, any()}.
+-spec start(atom(), [atom()], list()) -> {ok, node()} | {error, any()}.
 
 start(Name) ->
    start(Name, [X || {X, _, _} <- application:which_applications()]).
@@ -43,9 +43,9 @@ start(Name, Apps, Config) ->
 
 %%
 %% clone the node as slave and link it to process
--spec(start_link/1 :: (atom()) -> {ok, node()} | {error, any()}).
--spec(start_link/2 :: (atom(), [atom()]) -> {ok, node()} | {error, any()}).
--spec(start_link/3 :: (atom(), [atom()], list()) -> {ok, node()} | {error, any()}).
+-spec start_link(atom()) -> {ok, node()} | {error, any()}.
+-spec start_link(atom(), [atom()]) -> {ok, node()} | {error, any()}.
+-spec start_link(atom(), [atom()], list()) -> {ok, node()} | {error, any()}.
 
 start_link(Name) ->
    start_link(Name, [X || {X, _, _} <- application:which_applications()]).

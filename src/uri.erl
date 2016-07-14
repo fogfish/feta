@@ -97,8 +97,8 @@
 -define(is_urn(X),   X =:= urn).
 %%
 %% parses URI into tuple, fails with badarg if invalid URI
--spec(new/0 :: () -> uri()).
--spec(new/1 :: (list() | binary() | atom() | uri()) -> uri()).
+-spec new() -> uri().
+-spec new(list() | binary() | atom() | uri()) -> uri().
 
 new() ->
    new(undefined).
@@ -142,8 +142,8 @@ new({urn, _, _} = Urn) ->
 
 %%
 %% uri schema
--spec(schema/1 :: (uri()) -> schema()).
--spec(schema/2 :: (schema(), uri()) -> uri()).
+-spec schema(uri()) -> schema().
+-spec schema(schema(), uri()) -> uri().
 
 schema({Uri, S, _})
  when ?is_uri(Uri) ->
@@ -160,8 +160,8 @@ schema(Val, {Uri, _, U})
 
 %%
 %% uri user info
--spec(userinfo/1 :: (uri()) -> {binary(), binary()} | binary()).
--spec(userinfo/2 :: ({any(), any()} | any(), uri()) -> uri()).
+-spec userinfo(uri()) -> {binary(), binary()} | binary().
+-spec userinfo({any(), any()} | any(), uri()) -> uri().
 
 userinfo({_, _, #uval{user=undefined}}) ->
    undefined;
@@ -182,8 +182,8 @@ userinfo(Val, {Uri, S, #uval{}=U}) ->
 
 %%
 %%
--spec(host/1 :: (uri()) -> binary()).
--spec(host/2 :: (any(), uri()) -> uri()).
+-spec host(uri()) -> binary().
+-spec host(any(), uri()) -> uri().
 
 host({_,  _, #uval{}=U}) ->
    U#uval.host.
@@ -198,8 +198,8 @@ host(Val, {Uri, S, #uval{}=U}) ->
 
 %%
 %%
--spec(port/1 :: (uri()) -> integer()).
--spec(port/2 :: (any(), uri()) -> uri()).
+-spec port(uri()) -> integer().
+-spec port(any(), uri()) -> uri().
 
 port({_, S, #uval{}=U}) ->
    schema_to_port(S, U#uval.port).
@@ -211,8 +211,8 @@ port(Val, {Uri, S, #uval{}=U}) ->
 
 %%
 %% authority   = [ userinfo "@" ] host [ ":" port ]
--spec(authority/1 :: (uri()) -> {binary(), integer()}).
--spec(authority/2 :: ({any(), any()} | any(), uri()) -> uri()).
+-spec authority(uri()) -> {binary(), integer()}.
+-spec authority({any(), any()} | any(), uri()) -> uri().
 
 authority({_, _, _}=Uri) ->
    case {uri:host(Uri), uri:port(Uri)} of
@@ -237,8 +237,8 @@ authority(Val, {uri, _, _}=Uri) ->
 
 %%
 %%
--spec(path/1 :: (uri()) -> binary()).
--spec(path/2 :: (any(), uri()) -> uri()).
+-spec path(uri()) -> binary().
+-spec path(any(), uri()) -> uri().
 
 path({_, _, #uval{path=undefined}}) ->
    undefined;
@@ -261,8 +261,8 @@ path(Val, {urn, S, _}) ->
 
 %%
 %%
--spec(segments/1 :: (uri()) -> [binary()]).
--spec(segments/2 :: (any(), uri()) -> uri()).
+-spec segments(uri()) -> [binary()].
+-spec segments(any(), uri()) -> uri().
 
 segments({_, _, #uval{path=undefined}}) ->
    undefined;
@@ -296,7 +296,7 @@ segments(Val, Uri)
 
 %%
 %% join path segment(s)
--spec(join/2 :: ([any()], uri()) -> uri()).
+-spec join([any()], uri()) -> uri().
 
 join([H|T], {urn, _, _}=Uri) ->
    X = iolist_to_binary([scalar:s(H)|[[$:, scalar:s(X)] || X <- T]]),
@@ -320,8 +320,8 @@ join(Join, {T, _, _}=Uri)
 
 %%
 %%
--spec(q/1 :: (uri()) -> [{binary(), binary()}]).
--spec(q/2 :: (any(), uri()) -> uri()).
+-spec q(uri()) -> [{binary(), binary()}].
+-spec q(any(), uri()) -> uri().
 
 q({uri, _, #uval{q=undefined}}) ->
    undefined;
@@ -372,8 +372,8 @@ set_qelement(Key) ->
 
 %%
 %%
--spec(anchor/1 :: (uri()) -> binary()).
--spec(anchor/2 :: (any(), uri()) -> uri()).
+-spec anchor(uri()) -> binary().
+-spec anchor(any(), uri()) -> uri().
 
 anchor({uri, _, #uval{anchor=undefined}}) ->
    undefined;
@@ -387,8 +387,8 @@ anchor(Val, {uri, S, U}) ->
 
 %%
 %% suburi is /path?query#anchor
--spec(suburi/1 :: (uri()) -> binary()).
--spec(suburi/2 :: (any(), uri()) -> binary()).
+-spec suburi(uri()) -> binary().
+-spec suburi(any(), uri()) -> binary().
 
 suburi({uri, _, U}=Uri) ->
    <<(uri:path(Uri))/binary, (tosp(U#uval.q, $?))/binary, (tosp(U#uval.anchor, $#))/binary>>.
@@ -411,7 +411,7 @@ suburi(Val, Uri) ->
 
 %%
 %% compatibility wrapper for uri getter interface
--spec(get/2 :: (atom(), uri()) -> any()).
+-spec get(atom(), uri()) -> any().
 
 get(Item,     Uri) 
  when is_binary(Uri) orelse is_list(Uri) -> 
@@ -448,7 +448,7 @@ set(suburi,    Val, Uri) -> uri:suburi(Val, Uri).
 
 %%
 %% helper function to read key value from query
--spec(q/3 :: (any(), any(), uri()) -> uri()).
+-spec q(any(), any(), uri()) -> uri().
 
 q(_Key, Default, {uri, _, #uval{q=undefined}}) ->
    Default;
@@ -563,7 +563,7 @@ schema_to_s([H|T]) ->
 %%
 %% to urn
 %% replaces urn prefix with short name and return corresponding urn schema
--spec(urn/2 :: (uri(), any()) -> binary()).
+-spec urn(uri(), any()) -> binary().
 
 urn({uri, _, _}=Uri, Prefixes)
  when is_list(Prefixes) ->
@@ -689,7 +689,7 @@ decode(<<>>, Acc) ->
 
 %%
 %% utility function to convert ip address to network
--spec(aton/1 :: (any()) -> integer()).
+-spec aton(any()) -> integer().
 
 aton({A, B, C, D}) ->
    (A bsl 24) bor (B bsl 16) bor (C bsl 8) bor D;

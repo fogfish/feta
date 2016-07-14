@@ -47,8 +47,8 @@
 
 %%
 %% create csv parser
--spec(new/0 :: () -> #csv{}).
--spec(new/1 :: (list()) -> #csv{}).
+-spec new() -> #csv{}.
+-spec new(list()) -> #csv{}.
 
 new() ->
    #csv{}.
@@ -61,8 +61,8 @@ new(Opts) ->
 
 %%
 %% stream decoder
--spec(stream/1 :: (stdio:stream()) -> stdio:stream()).
--spec(stream/2 :: (stdio:stream(), #csv{}) -> stdio:stream()).
+-spec stream(stdio:stream()) -> stdio:stream().
+-spec stream(stdio:stream(), #csv{}) -> stdio:stream().
 
 stream(Stream) ->
    stream(Stream, new()).
@@ -92,7 +92,7 @@ stream([Head|Tail], Stream, State) ->
 %%
 %% decode csv stream
 %% returns parsed values and new parser state
--spec(decode/2 :: (binary(), #csv{}) -> {[csv()], #csv{}}).
+-spec decode(binary(), #csv{}) -> {[csv()], #csv{}}.
 
 decode(Chunk, #csv{recbuf = <<>>}=State)
  when is_binary(Chunk) ->
@@ -137,7 +137,7 @@ split(Input, FieldBy) ->
 %%
 %% encode csv stream
 %% returns encoded values and new parser state
--spec(encode/2 :: (list() | tuple(), #csv{}) -> {binary(), #csv{}}).
+-spec encode(list() | tuple(), #csv{}) -> {binary(), #csv{}}.
 
 encode([H|T], #csv{field=FieldBy, line=LineBy}=State) ->
    Msg = erlang:iolist_to_binary(

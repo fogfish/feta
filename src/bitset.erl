@@ -43,8 +43,8 @@
 
 %%
 %% create new bitset
--spec(new/1 :: (integer()) -> bitset()).
--spec(new/2 :: (atom(), integer()) -> bitset()).
+-spec new(integer()) -> bitset().
+-spec new(atom(), integer()) -> bitset().
 
 new(Size) ->
 	new(hipe, Size).
@@ -70,7 +70,7 @@ new(ets,   _Size) ->
 
 %%
 %% set bit
--spec(set/2 :: (integer(), bitset()) -> bitset()).
+-spec set(integer(), bitset()) -> bitset().
 
 set(Bit, #bitset{type=array, bits=Bits}=S) ->
 	Index = Bit div ?WORD_ARRAY,
@@ -97,7 +97,7 @@ set(Bit, #bitset{type=ets, bits=Bits}=S) ->
 
 %%
 %% reset bit
--spec(rst/2 :: (integer(), bitset()) -> bitset()).
+-spec rst(integer(), bitset()) -> bitset().
 
 rst(Bit, #bitset{type=array, bits=Bits}=S) ->
 	Index = Bit div ?WORD_ARRAY,
@@ -125,7 +125,7 @@ rst(Bit, #bitset{type=ets, bits=Bits}=S) ->
 
 %%
 %%
--spec(get/2 :: (integer(), bitset()) -> true | false).
+-spec get(integer(), bitset()) -> true | false.
 
 get(Bit, #bitset{type=array, bits=Bits}) ->
 	Index = Bit div ?WORD_ARRAY,

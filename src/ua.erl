@@ -31,7 +31,7 @@
 
 %%
 %% decode user agent string 
--spec(decode/1 :: (binary() | list()) -> [{prod(), vsn()}]).
+-spec decode(binary() | list()) -> [{prod(), vsn()}].
 
 decode(UA)
  when is_binary(UA) ->

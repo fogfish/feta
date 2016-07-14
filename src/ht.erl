@@ -74,15 +74,15 @@
 
 %%
 %% new hash tree
--spec(new/0 :: () -> tree()).
+-spec new() -> tree().
 
 new() -> 
    {0, #ht{}}.
    
 %%
 %% insert a new entity to hash tree, any existed value is updated
--spec(insert/2 :: (key(), tree()) -> tree()).
--spec(insert/3 :: (hash(), key(), tree()) -> tree()).
+-spec insert(key(), tree()) -> tree().
+-spec insert(hash(), key(), tree()) -> tree().
 
 insert(Key, Tree) ->
    insert(?HASH(Key), Key, Tree).
@@ -112,7 +112,7 @@ ht_insert(L, Hash, Key, #ht{}=Node) ->
 
 %%
 %% lookup entity, throws badarg exception if Hash is not present
--spec(lookup/2 :: (hash(), tree()) -> key()).
+-spec lookup(hash(), tree()) -> key().
 
 lookup(Hash, {_, #ht{}=Node}) ->
    ht_lookup(1, Hash, Node).
@@ -127,7 +127,7 @@ ht_lookup(L, Hash, #ht{}=Node) ->
 
 %%
 %% remove entity from the tree
--spec(remove/2 :: (hash(), tree()) -> tree()).
+-spec remove(hash(), tree()) -> tree().
 
 remove(Hash, {N, #ht{}=Node}) ->
    {N - 1, ht_remove(1, Hash, Node)}.
@@ -149,7 +149,7 @@ ht_remove(L, Hash, #ht{}=Node) ->
 
 %%
 %% map function over tree
--spec(map/2 :: (function(), tree()) -> tree()).
+-spec map(function(), tree()) -> tree().
 
 map(Fun, {_, #ht{}=Node}) ->
    map(Fun, Node);
@@ -164,8 +164,8 @@ map(Fun, #ht{}=Node) ->
 
 %%
 %% fold function over tree
--spec(foldl/3 :: (function(), any(), tree()) -> any()).
--spec(foldr/3 :: (function(), any(), tree()) -> any()).
+-spec foldl(function(), any(), tree()) -> any().
+-spec foldr(function(), any(), tree()) -> any().
 
 foldl(Fun, Acc, {_, #ht{}=Node}) ->
    foldl(Fun, Acc, Node);
@@ -191,7 +191,7 @@ foldr(Fun, Acc0, #ht{}=Node) ->
 
 %%
 %% return all elements from the tree
--spec(list/1 :: (tree()) -> [key()]).
+-spec list(tree()) -> [key()].
 
 list(T) ->
    foldl(fun(X, Acc) -> [X | Acc] end, [], T).   
@@ -201,8 +201,8 @@ list(T) ->
 %% hash(Depth, HT) -> {hash, Depth, [Hash]}
 %%
 %% return list of signatures at depth (inner hashes only) or elements signature 
--spec(hash/1 :: (tree()) -> signature()).
--spec(hash/2 :: (integer(), tree()) -> signature()).
+-spec hash(tree()) -> signature().
+-spec hash(integer(), tree()) -> signature().
 
 hash(L, {_, #ht{}=Node}) ->
    case ht_hash(L, [], Node) of
@@ -224,7 +224,7 @@ ht_hash(L, Acc0, #ht{}=Node) ->
 
 %%
 %% calculates difference (reconciliation) of trees or signatures
--spec(diff/2 :: (signature() | tree(), signature() | tree()) -> signature() | {tree(), tree()}).
+-spec diff(signature() | tree(), signature() | tree()) -> signature() | {tree(), tree()}.
 
 %% compares tree signatures, returns hash intersection
 diff({hash, DA, SA}, {hash, DB, SB})
@@ -259,7 +259,7 @@ ht_diff(L, A, B) ->
 
 %%
 %% evict subtrees that matches a signature
--spec(evict/2 :: (signature(), tree()) -> tree()).
+-spec evict(signature(), tree()) -> tree().
 
 evict({hash, L, Hashes}, {N, #ht{}=Node}) ->
    {N, ht_evict(L, Hashes, Node)}.
@@ -386,8 +386,5 @@ ht_find_node(L, Hash, Nodes) ->
       #ht{}=N ->
          N
    end.
-
-
-
 
 

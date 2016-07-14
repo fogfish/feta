@@ -70,10 +70,10 @@
 
 %%
 %% time to micro-, milli-, second or date-time
--spec(u/1 :: (t()) -> integer()).
--spec(m/1 :: (t()) -> integer()).
--spec(s/1 :: (t()) -> integer()).
--spec(d/1 :: (t()) -> calendar:datetime()).
+-spec u(t()) -> integer().
+-spec m(t()) -> integer().
+-spec s(t()) -> integer().
+-spec d(t()) -> calendar:datetime().
 
 u({A2, A1, A0}) ->
    A0 + ?BASE * (A1 + ?BASE * A2);
@@ -108,7 +108,7 @@ d({{_, _, _}, {_, _, _}}=X) ->
 
 %%
 %% micro-, milli-, second to time
--spec(t/2 :: (u | m | s | d, integer()) -> t()).
+-spec t(u | m | s | d, integer()) -> t().
 
 t(u, X) 
  when is_integer(X) ->
@@ -153,14 +153,14 @@ t(d, {_, _, _}=X) ->
 
 %%
 %% calculate time difference, return micro- seconds
--spec(diff/1 :: (t()) -> integer()).
+-spec diff(t()) -> integer().
 
 diff(T) ->
    sub(os:timestamp(), T).
 
 %%
 %% add time
--spec(add/2 :: (t(), t()) -> t()).
+-spec add(t(), t()) -> t().
 
 add({_, _, _}=A, {_, _, _}=B) ->
    add_time(A, B);
@@ -183,7 +183,7 @@ add_time(X, Y, Q) ->
 
 %%
 %% subtract time
--spec(sub/2 :: (t(), t()) -> t()).
+-spec sub(t(), t()) -> t().
 
 sub({_, _, _}=A, {_, _, _}=B) ->
    sub_time(A, B);
@@ -208,7 +208,7 @@ sub_time(X, Y, A) ->
 
 %%
 %% multiply time
--spec(mul/2 :: (t(), t()) -> t()).
+-spec mul(t(), t()) -> t().
 
 mul({_, _, _}=A, {_, _, _}=B) ->
    mul_time(A, B);
@@ -231,7 +231,7 @@ mul_time(X, Y, Q) ->
 
 %%
 %% returns a sequence of times values on interval A, B
--spec(seq/3 :: (t(), t(), t()) -> [t()]).
+-spec seq(t(), t(), t()) -> [t()].
 
 seq({_, _, _}=A, {_, _, _}=B, {_, _, _}=C) ->
    seq_time(A, B, C);
@@ -250,7 +250,7 @@ seq_time(_, _, _) ->
 
 %%
 %% calculate discrete time 
--spec(discrete/2 :: (t(), t()) -> t()).
+-spec discrete(t(), t()) -> t().
 
 discrete({_, _, _}=X, {_, _, _}=Y) ->
    A = u(X),
@@ -276,7 +276,7 @@ discrete(X, Y)
 
 %%
 %% raise event after timeout
--spec(event/2 :: (integer() | timer(), any()) -> any()).
+-spec event(integer() | timer(), any()) -> any().
 
 event(T, Msg)
  when is_integer(T) ->
@@ -294,7 +294,7 @@ event(T, _Msg) ->
 
 %%
 %% define timer
--spec(timer/2 :: (integer() | timer(), any()) -> timer()).
+-spec timer(integer() | timer(), any()) -> timer().
 
 timer(T, Msg)
  when is_integer(T) ->
@@ -327,7 +327,7 @@ timer(T, _Msg) ->
 
 %%
 %% reset event's timeout 
--spec(reset/2 :: (integer() | timer(), any()) -> any()).
+-spec reset(integer() | timer(), any()) -> any().
 
 reset(T, Msg)
  when is_integer(T) ->
@@ -341,7 +341,7 @@ reset({timer, _, _}=T, Msg) ->
 
 %%
 %% cancel event
--spec(cancel/1 :: (any()) -> integer()).
+-spec cancel(any()) -> integer().
 
 cancel(T)
  when is_integer(T) ->
@@ -464,8 +464,8 @@ decode_iso8601_tz(<<H:2/binary>>) ->
 
 %%
 %% parses literal date time
--spec(decode/1 :: (any()) -> tempus:t()).
--spec(decode/2 :: (list(), any()) -> tempus:t()).
+-spec decode(any()) -> tempus:t().
+-spec decode(list(), any()) -> tempus:t().
 
 decode(Val) ->
    decode(?ISO8601, Val).
@@ -683,8 +683,8 @@ full_month_of_year("December" ++ Tail) -> {12, Tail}.
 
 %%
 %% encode date time
--spec(encode/1 :: (tempus:t()) -> list()).
--spec(encode/2 :: (list(), tempus:t()) -> list()).
+-spec encode(tempus:t()) -> list().
+-spec encode(list(), tempus:t()) -> list().
 
 encode(Val) ->
    encode(?ISO8601, Val).

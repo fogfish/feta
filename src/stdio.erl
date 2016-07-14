@@ -44,9 +44,9 @@
 
 %%
 %% creates a newly allocated stream - datum compatible
--spec(new/0 :: () -> stdio:stream()).
--spec(new/1 :: (any()) -> stream()).
--spec(new/2 :: (any(), function()) -> stream()).
+-spec new() -> stdio:stream().
+-spec new(any()) -> stream().
+-spec new(any(), function()) -> stream().
 
 new() ->
    ?NULL.
@@ -58,7 +58,7 @@ new(Head, Fun)
 
 %%
 %% head element of stream
--spec(head/1 :: (stdio:stream()) -> any()).
+-spec head(stdio:stream()) -> any().
 
 head({s, Head, _}) ->
    Head;
@@ -67,7 +67,7 @@ head(_) ->
 
 %%
 %% stream tail
--spec(tail/1 :: (stdio:stream()) -> stdio:stream()).
+-spec tail(stdio:stream()) -> stdio:stream().
 
 tail({s, _, Fun}) ->
    Fun();
@@ -76,7 +76,7 @@ tail(_) ->
 
 %%
 %% apply function to each stream element
--spec(foreach/2 :: (function(), stdio:stream()) -> ok).
+-spec foreach(function(), stdio:stream()) -> ok.
 
 foreach(Fun, {s, _, _}=Stream) ->
    Fun(head(Stream)),
@@ -87,8 +87,8 @@ foreach(_Fun, _) ->
 
 %%
 %% return list of stream elements
--spec(list/1 :: (stdio:stream()) -> list()).
--spec(list/2 :: (integer(), stdio:stream()) -> list()).
+-spec list(stdio:stream()) -> list().
+-spec list(integer(), stdio:stream()) -> list().
 
 list({s, _, _}=Stream) ->
    [stdio:head(Stream) | list(stdio:tail(Stream))];
@@ -106,9 +106,9 @@ list(_, _) ->
 %% create file stream
 %%  Options:
 %%    * {iobuf, integer()} - size of i/o buffer
--spec(file/1 :: (list()) -> stdio:stream()).
--spec(file/2 :: (list(), list()) -> stdio:stream()).
--spec(file/3 :: (list(), list(), stdio:stream()) -> ok | {error, any()}).
+-spec file(list()) -> stdio:stream().
+-spec file(list(), list()) -> stdio:stream().
+-spec file(list(), list(), stdio:stream()) -> ok | {error, any()}.
 
 file(File) ->
    file(File, []).

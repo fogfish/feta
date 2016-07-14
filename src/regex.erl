@@ -18,17 +18,17 @@
 -module(regex).
 
 -export([
-	m/2,
-	m/1,
-	p/2,
-	run/2
+   m/2,
+   m/1,
+   p/2,
+   run/2
 ]).
 
 -type(regex() :: re:mp() | binary() | list()).
 
 %%
 %% match string to regex
--spec(m/2 :: (binary(), regex()) -> nomatch | [binary()]).
+-spec m(binary(), regex()) -> nomatch | [binary()].
 
 m(String, RegEx)
  when is_binary(String) ->
@@ -40,18 +40,18 @@ m(String, RegEx)
  	end.
 
 %%
-%% build regex match functor
--spec(m/1 :: (regex()) -> function()).
+%% build regex match function
+-spec m(regex()) -> function().
 
 m(RegEx) ->
 	{ok, Ex} = re:compile(RegEx),
  	fun(String) -> regex:m(String, Ex) end.
 
 %%
-%% build pattern match functor, 
+%% build pattern match function, 
 %% function is executed if input string matched pattern 
 %% (bind function to regex)
--spec(p/2 :: (regex(), function()) -> function()).
+-spec p(regex(), function()) -> function().
 
 p(RegEx, Fun) ->
 	{ok, Ex} = re:compile(RegEx),
@@ -66,7 +66,7 @@ p(RegEx, Fun) ->
 	
 %%
 %% run regex application
--spec(run/2 :: (binary(), [function()]) -> nomatch | any()).
+-spec run(binary(), [function()]) -> nomatch | any().
 
 run(String, [H | T])
  when is_binary(String) ->

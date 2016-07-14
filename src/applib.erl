@@ -30,8 +30,8 @@
 %% -export([start/0]).
 %%
 %% start() -> applib:boot(?MODULE, "./rel/files/dev.config").
--spec(boot/1 :: (atom()) -> ok).
--spec(boot/2 :: (atom(), list()) -> ok).
+-spec boot(atom()) -> ok.
+-spec boot(atom(), list()) -> ok.
 
 boot(App) ->
    case binary:split(scalar:s(erlang:node()), <<$@>>) of
@@ -64,7 +64,7 @@ where_is_config(File) ->
 
 %%
 %% list application dependencies
--spec(deps/1 :: (atom()) -> [atom()]).
+-spec deps(atom()) -> [atom()].
 
 deps(App)
  when is_atom(App) ->
@@ -101,7 +101,7 @@ maybe_deps(AppFile, App, Acc0) ->
 
 %%
 %% check application status
--spec(phase/1 :: (atom()) -> running | loaded | undefined).
+-spec phase(atom()) -> running | loaded | undefined.
 
 phase(App)
  when is_atom(App) ->
@@ -119,7 +119,7 @@ maybe_loaded(false, _App) ->
 
 %%
 %% check if application is running
--spec(is_running/1 :: (atom()) -> true | false).
+-spec is_running(atom()) -> true | false.
 
 is_running(App)
  when is_atom(App) ->
@@ -130,7 +130,7 @@ is_running(App)
 
 %%
 %% check if application is loaded
--spec(is_loaded/1 :: (atom()) -> true | false).
+-spec is_loaded(atom()) -> true | false.
 
 is_loaded(App)
  when is_atom(App) ->
@@ -191,3 +191,4 @@ ensure_started(App, ok) ->
    end;
 ensure_started(_,Error) ->
    Error.
+

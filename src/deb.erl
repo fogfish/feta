@@ -25,8 +25,8 @@ uptime() ->
 
 %%
 %% inspect length of process queues
--spec(queue/0 :: () -> [{pid(), integer()}]).
--spec(queue/1 :: ([pid()]) -> [{pid(), integer()}]).
+-spec queue() -> [{pid(), integer()}].
+-spec queue([pid()]) -> [{pid(), integer()}].
 
 queue() ->
    queue(erlang:processes()).
@@ -36,8 +36,8 @@ queue(Pids) ->
 
 %%
 %% inspect processes heap size
--spec(heap/0 :: () -> [{pid(), integer()}]).
--spec(heap/1 :: ([pid()]) -> [{pid(), integer()}]).
+-spec heap() -> [{pid(), integer()}].
+-spec heap([pid()]) -> [{pid(), integer()}].
 
 heap() ->
    heap(erlang:processes()).
@@ -47,8 +47,8 @@ heap(Pids) ->
 
 %%
 %% inspect reductions used by processes
--spec(cpu/0 :: () -> [{pid(), integer()}]).
--spec(cpu/1 :: ([pid()]) -> [{pid(), integer()}]).
+-spec cpu() -> [{pid(), integer()}].
+-spec cpu([pid()]) -> [{pid(), integer()}].
 
 cpu() ->
    cpu(erlang:processes()).
@@ -58,7 +58,7 @@ cpu(Pids) ->
 
 %%
 %% return list of all worker processes (incl. nested) visible in tree
--spec(supervised/1 :: (atom() | pid()) -> [pid()]).
+-spec supervised(atom() | pid()) -> [pid()].
 
 supervised(Sup) ->
    supervised(Sup, []).
@@ -75,7 +75,7 @@ supervised(Sup, Acc0) ->
 
 %%
 %% read process state
--spec(state/1 :: (atom() | pid()) -> any()).
+-spec state(atom() | pid()) -> any().
 
 state(Pid) ->
    {status, _Pid, _Mod, 
@@ -92,7 +92,7 @@ state(Pid) ->
 
 %%
 %% execute common test and terminate node
--spec(test/1 :: (list()) -> ok).
+-spec test(list()) -> ok.
 
 test(Spec) ->
    {ok, Test} = file:consult(Spec),

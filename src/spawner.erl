@@ -26,14 +26,14 @@
 
 %%
 %% compatibility wrapper for slave
--spec(start/3 :: (atom(), atom(), list()) -> {ok, node()} | {error, any()}).
+-spec start(atom(), atom(), list()) -> {ok, node()} | {error, any()}.
 
 start(_Host, Node, _Opts) ->
    new(Node).
 
 %%
 %% spawn new node
--spec(new/1 :: (atom()) -> {ok, node()} | {error, any()}).
+-spec new(atom()) -> {ok, node()} | {error, any()}.
 
 new(Name) ->
    Node = scalar:atom(host(Name)),
@@ -56,7 +56,7 @@ new(Name) ->
 
 %%
 %% terminate node
--spec(free/1 :: (atom()) -> ok).
+-spec free(atom()) -> ok.
 
 free(Name) ->
    Node = scalar:atom(host(Name)),    

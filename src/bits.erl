@@ -44,7 +44,7 @@
 
 %%
 %% count number of set bit at 32 bit integer (ones, count)
--spec(cnt32/1 :: (integer()) -> integer()).
+-spec cnt32(integer()) -> integer().
 
 cnt32(X0) ->
    X1 = X0 - ((X0 bsr 1) band 16#55555555),
@@ -56,7 +56,7 @@ cnt32(X0) ->
 
 %%
 %% leading zero count at 32 bit integer
--spec(lzc32/1 :: (integer()) -> integer()).
+-spec lzc32(integer()) -> integer().
 
 lzc32(X0) ->
    X1 = X0 bor (X0 bsr  1),
@@ -74,7 +74,7 @@ lzc32(X0) ->
 
 %%
 %% count number of set bit
--spec(cnt/1 :: (bitstring()) -> integer()).
+-spec cnt(bitstring()) -> integer().
 
 cnt(X)
  when is_bitstring(X) ->
@@ -91,7 +91,7 @@ cnt(<<>>, Acc) ->
 
 %%
 %% leading zero count
--spec(lzc/1 :: (bitstring()) -> integer()).
+-spec lzc(bitstring()) -> integer().
 
 lzc(X)
  when is_bitstring(X) ->
@@ -110,7 +110,7 @@ lzc(<<>>, Acc) ->
 
 %%
 %% leading common bit count
--spec(lcc/2 :: (bitstring(), bitstring()) -> integer()).
+-spec lcc(bitstring(), bitstring()) -> integer().
 
 lcc(X, Y)
  when is_bitstring(X), is_bitstring(Y) ->
@@ -124,7 +124,7 @@ lcc(X, Y)
 
 %% 
 %% common bits prefix
--spec(prefix/2 :: (bitstring(), bitstring()) -> bitstring()).
+-spec prefix(bitstring(), bitstring()) -> bitstring().
 
 prefix(X, Y)
  when is_bitstring(X), is_bitstring(Y) ->
@@ -134,7 +134,7 @@ prefix(X, Y)
 
 %%
 %% return true if Y is prefix of X
--spec(is_prefix/2 :: (bitstring(), bitstring()) -> true | false).
+-spec is_prefix(bitstring(), bitstring()) -> true | false.
 
 is_prefix(X, Y)
  when is_bitstring(X), is_bitstring(Y) ->
@@ -228,3 +228,4 @@ interleave(X, Y, N, Acc) ->
    <<_:N/bits, Xbit:1, _/bits>> = X,
    <<_:N/bits, Ybit:1, _/bits>> = Y,
    interleave(X, Y, N - 1, <<Xbit:1, Ybit:1, Acc/bits>>).
+

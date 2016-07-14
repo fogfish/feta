@@ -39,7 +39,7 @@ expand(Path) ->
 %%
 %% applies a function to each file for its side-effects;
 %% it returns nothing.
--spec(foreach/2 :: (function(), path()) -> ok).
+-spec foreach(function(), path()) -> ok.
 
 foreach(Fun, Path) ->
    case filelib:is_dir(Path) of
@@ -61,7 +61,7 @@ foreach(Fun, Path) ->
 
 %%
 %%
--spec(fold/3 :: (function(), any(), path()) -> ok).
+-spec fold(function(), any(), path()) -> ok.
 
 fold(Fun, Acc, Path) ->
    case filelib:is_dir(Path) of
@@ -86,3 +86,4 @@ fold(Fun, Acc, Path) ->
                Acc
          end
    end.
+

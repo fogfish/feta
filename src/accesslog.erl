@@ -65,8 +65,8 @@
 
 %%
 %% decode access log
--spec(decode/1 :: (binary()) -> [{atom(), binary()}]).
--spec(decode/2 :: (list(), binary()) -> [{atom(), binary()}]).
+-spec decode(binary()) -> [{atom(), binary()}].
+-spec decode(list(), binary()) -> [{atom(), binary()}].
 
 decode(Log)
  when is_binary(Log) ->

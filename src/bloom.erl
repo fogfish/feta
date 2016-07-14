@@ -59,8 +59,8 @@
 %% create new bloom filter
 %%   N - estimated size of the set
 %%   E - desired false positive probability
--spec(new/2 :: (integer(), float()) -> #bloom{}).
--spec(new/3 :: (atom(), integer(), float()) -> #bloom{}).
+-spec new(integer(), float()) -> #bloom{}.
+-spec new(atom(), integer(), float()) -> #bloom{}.
 
 new(N, E) ->
    new(std, N, E).
@@ -107,8 +107,8 @@ new(stable, N, E) ->
 %%     {type,    atom()} - bloom filter type
 %%     {n,    integer()} - estimated size of the set
 %%     {e,      float()} - desired false positive probability   
--spec(start_link/1 :: (list()) -> {ok, pid()} | {error, any()}).
--spec(start_link/2 :: (atom(), list()) -> {ok, pid()} | {error, any()}).
+-spec start_link(list()) -> {ok, pid()} | {error, any()}.
+-spec start_link(atom(), list()) -> {ok, pid()} | {error, any()}.
 
 start_link(Opts) ->
    gen_server:start_link(?MODULE, [Opts], []).
@@ -119,7 +119,7 @@ start_link(Name, Opts) ->
 
 %%
 %%
--spec(insert/2 :: (any(), #bloom{}) -> #bloom{}).
+-spec insert(any(), #bloom{}) -> #bloom{}.
 
 insert(Element, #bloom{}=B) ->
    B#bloom{
@@ -132,7 +132,7 @@ insert(Element, Pid) ->
 
 %%
 %%
--spec(lookup/2 :: (any(), #bloom{}) -> {true | false, #bloom{}}).
+-spec lookup(any(), #bloom{}) -> {true | false, #bloom{}}.
 
 lookup(Element, #bloom{type=std}=B) ->
    {

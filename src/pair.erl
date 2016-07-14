@@ -38,7 +38,7 @@
 %%
 %% lookup value using path
 %% throws exception if value do not exists
--spec(lookup/2 :: ([key()], pairs()) -> val()).
+-spec lookup([key()], pairs()) -> val().
 
 lookup([Key | Tail], Value) ->
    lookup(Tail, lookup_term(Key, Value));
@@ -50,7 +50,7 @@ lookup(Key, Value) ->
 %%
 %% lookup value using path
 %% return default value if path do not exists
--spec(lookup/3 :: ([key()], val(), pairs()) -> val()).
+-spec lookup([key()], val(), pairs()) -> val().
 
 lookup(Path, Default, Pairs) ->
    try
@@ -78,7 +78,7 @@ lookup_term(Key, X)
 
 %%
 %% shortcut alias to lookup path
--spec(x/2 :: ([key()], pairs()) -> val()).
+-spec x([key()], pairs()) -> val().
 
 x(Path, Pairs) ->
    lookup(Path, undefined, Pairs).
@@ -86,7 +86,7 @@ x(Path, Pairs) ->
 
 %%
 %% shortcut alias to check is path exists
--spec(a/2 :: ([key()], pairs()) -> true | false).
+-spec a([key()], pairs()) -> true | false.
 
 a(Path, Pairs) ->
    X = lookup(Path, undefined, Pairs),
@@ -96,9 +96,9 @@ a(Path, Pairs) ->
 %%
 %% record to pairs, build list of key / val pairs from record.
 %% pair:rtol(record_info(fields, a), #a{}).
--spec(rtop/2 :: ([atom()], tuple()) -> pairs()).
--spec(rtoa/2 :: ([atom()], tuple()) -> pairs()).
--spec(rtos/2 :: ([atom()], tuple()) -> pairs()).
+-spec rtop([atom()], tuple()) -> pairs().
+-spec rtoa([atom()], tuple()) -> pairs().
+-spec rtos([atom()], tuple()) -> pairs().
 
 rtop(Struct, X) -> 
    rtoa(Struct, X).
@@ -115,9 +115,9 @@ rtos(Struct, X)
 %%
 %% pair to record, build record from pairs of record
 %% pair:ptor(a, record_info(fields, a), [...]).
--spec(ptor/3 :: (atom(), [atom()], pairs()) -> tuple()).
--spec(stor/3 :: (atom(), [atom()], pairs()) -> tuple()).
--spec(ator/3 :: (atom(), [atom()], pairs()) -> tuple()).
+-spec ptor(atom(), [atom()], pairs()) -> tuple().
+-spec stor(atom(), [atom()], pairs()) -> tuple().
+-spec ator(atom(), [atom()], pairs()) -> tuple().
 
 ptor(Type, Struct, X) ->
    ator(Type, Struct, X).

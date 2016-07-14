@@ -23,7 +23,7 @@
 
 %%
 %% stream decoder
--spec(stream/1 :: (stdio:stream()) -> stdio:stream()).
+-spec stream(stdio:stream()) -> stdio:stream().
 
 stream(Stream) ->
    entity( knowledge( csv:stream(Stream) ) ).
@@ -58,7 +58,7 @@ decode(Pred) ->
 %%
 %% produces stream of entity
 %% fold stream by entity id
--spec(entity/1 :: (datum:stream()) -> datum:stream()).
+-spec entity(datum:stream()) -> datum:stream().
 
 entity({s, [{id, Id} | _], _}=Stream) ->
    reduce(Id, [], Stream);
@@ -76,3 +76,5 @@ reduce(Id, Acc, {s, _, _} = Stream) ->
 
 reduce(Id, Acc, {}) ->
    stdio:new([{id, Id}|lists:reverse(Acc)]).
+
+

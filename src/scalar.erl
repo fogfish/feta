@@ -45,7 +45,7 @@
 
 %%
 %% scalar to integer
--spec(i/1 :: (any()) -> integer()).
+-spec i(_) -> integer().
 
 i(X) when is_binary(X)  -> btoi(X);
 i(X) when is_atom(X)    -> atoi(X);
@@ -60,7 +60,7 @@ ftoi(X) -> erlang:trunc(X).
 
 %%
 %% scalar to float
--spec(f/1 :: (any()) -> float()).
+-spec f(_) -> float().
 
 f(X) when is_binary(X)  -> btof(X);
 f(X) when is_atom(X)    -> atof(X);
@@ -75,7 +75,7 @@ itof(X) -> X + 0.0.
 
 %%
 %% scalar to string
--spec(s/1 :: (any()) -> binary()).
+-spec s(_) -> binary().
 
 s(undefined)            -> <<>>;
 s(X) when is_binary(X)  -> btos(X);
@@ -92,7 +92,7 @@ ftos(X) -> ltos(io_lib:format("~.9f", [X])).
 
 %%
 %% scalar to Unicode string
--spec(ls/1 :: (any()) -> binary()).
+-spec ls(_) -> binary().
 
 ls(X) when is_binary(X)  -> utob(X);
 ls(X) when is_atom(X)    -> atos(X);
@@ -113,7 +113,7 @@ utob(X) ->
 
 %%
 %% character list
--spec(c/1 :: (any()) -> list()).
+-spec c(_) -> list().
 
 c(undefined)            -> [];
 c(X) when is_binary(X)  -> btol(X);
@@ -129,7 +129,7 @@ ftol(X) -> lists:flatten(io_lib:format("~.9f", [X])).
 
 %%
 %% scalar to Unicode characters
--spec(lc/1 :: (any()) -> list()).
+-spec lc(_) -> list().
 
 lc(X) when is_binary(X)  -> utoc(X);
 lc(X) when is_atom(X)    -> atol(X);
@@ -150,7 +150,7 @@ utoc(X) ->
 
 %%
 %% existing atom
--spec(a/1 :: (any()) -> atom()).
+-spec a(_) -> atom().
 
 a(X) when is_binary(X)  -> btoa(X);
 a(X) when is_atom(X)    -> X;
@@ -166,7 +166,7 @@ ftoa(X) -> ltoa(ftol(X)).
 
 %%
 %% new atom
--spec(atom/1 :: (any()) -> atom()).
+-spec atom(_) -> atom().
 
 atom(X) when is_binary(X)  -> btoaa(X);
 atom(X) when is_atom(X)    -> X;
@@ -182,7 +182,7 @@ ftoaa(X) -> ltoaa(ftol(X)).
 
 %%
 %% decode scalar type
--spec(decode/1 :: (list() | binary()) -> any()).
+-spec decode(list() | binary()) -> any().
 
 decode(<<"true">>)  ->
    true;
