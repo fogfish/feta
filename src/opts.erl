@@ -131,17 +131,9 @@ get(Key, Default, Opts)
 get(Key, Default, Opts)
  when not is_list(Key), is_atom(Opts) ->
    case application:get_env(Opts, Key) of
-      {ok, true} -> 
-         Key;
-      {ok,  Val} -> 
-         {Key, Val};
-      undefined  -> 
-         case os_get_opts(Key, undefined, Opts) of
-            undefined ->
-               {Key, Default};
-            Value     ->
-               {Key, Value}
-         end
+      {ok, true} -> Key;
+      {ok,  Val} -> {Key, Val};
+      undefined  -> {Key, Default}
    end;
 
 get([Key|T], Default, Opts) ->
@@ -178,11 +170,4 @@ val(Key, Default, Opts) ->
 %%% private 
 %%%
 %%%------------------------------------------------------------------
-
-os_env(Key, Opts) ->
-   string:to_upper(scalar:c(Opts)) ++ "_" ++ string:to_upper(scalar:c(Key)).
-
-os_get_opts(Key, Default, Opts) ->
-   scalar:decode(os:getenv(os_env(Key, Opts), Default)).    
-
 
