@@ -184,6 +184,8 @@ ftoaa(X) -> ltoaa(ftol(X)).
 %% decode scalar type
 -spec decode(list() | binary()) -> any().
 
+decode(undefined) ->
+   undefined;
 decode(<<"true">>)  ->
    true;
 decode(<<"false">>) ->

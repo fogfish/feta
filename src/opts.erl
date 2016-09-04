@@ -13,67 +13,68 @@
 %%   See the License for the specific language governing permissions and
 %%   limitations under the License.
 %%
-%%   @description
-%%      helper module to handle list of key/value options, extension to proplists
+%% @doc
+%%   Configuration helper interface (extension to proplists). It transparently 
+%%   resolves configuration options using either key/value pairs or application 
+%%   global configuration: Erlang application environment and OS environment.
 -module(opts).
--export([check/3, check/2, filter/2, get/2, get/3, val/2, val/3]).
--export_type([options/0]).
 
--type key()     :: atom() | binary().
--type val()     :: term().
--type app()     :: atom().
--type options() :: [{key(), val()} | key()] | app().
+-export([check/3, check/2, filter/2, get/2, get/3, val/2, val/3]).
+-export_type([opts/0]).
+
+-type key()   :: atom() | binary().
+-type val()   :: term().
+-type app()   :: atom().
+-type pair()  :: {key(), val()}.
+-type opts()  :: [pair() | key()] | app().
+
 
 %%
-%% check either option list or application environment 
-%% and add default option if key do not exists
--spec check(Key, Default, Opts) -> Opts when
-      Key     :: key(),
-      Default :: val(),
-      Opts    :: options().
+%% check-and-define option with given key
+-spec check(key(), val(), opts()) -> opts().
 
 check(Key, Default, Opts)
- when is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      false -> [{Key, Default} | Opts];
-      _     -> Opts
+ when not is_list(Key), is_list(Opts) ->
+   case opts:get(Key, Default, Opts) of
+      {_, undefined} ->
+         throw({badarg, Key});
+      {_, Default} ->
+         [{Key, Default} | Opts];
+      _ ->
+         Opts
    end;
 
-check(Key, Default, App)
- when is_atom(App) ->
-   case application:get_env(App, Key) of
-      undefined -> 
-         application:set_env(App, Key, Default),
-         application:get_all_env(App);
-      _         ->
-         application:get_all_env(App)
-   end.
-
-check([Key|T], Opts)
- when is_list(Opts) ->
-   check(T, check(Key, Opts));
-
-check([], Opts)
- when is_list(Opts) ->
-   Opts;
-
-check({Key, Default}, Opts)
- when is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      false -> [{Key, Default} | Opts];
-      _     -> Opts
-   end;
-
-check(Key, Opts)
- when is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      false -> throw({badarg, Key});
-      _     -> Opts
+check(Key, Default, Opts)
+ when not is_list(Key), is_atom(Opts) ->
+   case opts:get(Key, Default, Opts) of
+      {_, undefined} ->
+         throw({badarg, Key});
+      {_, Default} ->
+         application:set_env(Opts, Key, Default),
+         Opts;
+      _ ->
+         Opts
    end.
 
 
 %%
-%% perform white list filtering of supplied konduit options
+%% check collection of keys are defined at environment
+-spec check([pair() | key()], opts()) -> opts().
+
+check([{Key, Default}|T], Opts) ->
+   check(T, check(Key, Default, Opts));
+
+check([Key|T], Opts) ->
+   check(T, check(Key, undefined, Opts));
+   
+check([], Opts) ->
+   Opts.
+
+
+%%
+%% perform white list filtering of supplied options
+-spec filter([key()], opts()) -> opts().
+
 filter(Filter, Opts)
  when is_list(Opts) ->
    lists:filter(
@@ -88,49 +89,24 @@ filter(Filter, App)
  when is_atom(App) ->
    filter(Filter, application:get_all_env(App)).
 
+
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
--spec get(Key, Opts) -> {Key, Val} when
-      Key  :: key() | list(),
-      Opts :: options(),
-      Val  :: term().
+-spec get(key() | [key()], opts()) -> pair().
 
 get(Key, Opts)
- when is_atom(Key), is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      {Key, _}=Val -> 
-         Val;
-      _  -> 
-         case lists:member(Key, Opts) of
-            true  -> Key;
-            false -> throw({badarg, Key})
-         end
-   end;
-
-get(Key, Opts)
- when is_binary(Key), is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      {Key, _}=Val -> 
-         Val;
-      _  -> 
-         case lists:member(Key, Opts) of
-            true  -> Key;
-            false -> throw({badarg, Key})
-         end
-   end;
-
-get(Key, App)
- when is_atom(Key), is_atom(App) ->
-   case application:get_env(App, Key) of
-      {ok, true} -> Key;
-      {ok,  Val} -> {Key, Val};
-      undefined  -> throw({badarg, Key})
+ when not is_list(Key) ->
+   case opts:get(Key, undefined, Opts) of
+      {_, undefined} ->
+         throw({badarg, Key});
+      Value ->
+         Value
    end;
 
 get([Key|T], Opts) ->
    case opts:get(Key, undefined, Opts) of
       {_, undefined} -> get(T, Opts);
-      Val            -> Val
+      Value          -> Value
    end;
 
 get([], _Opts) ->
@@ -138,14 +114,10 @@ get([], _Opts) ->
 
 %%
 %% read option value, return default key if key do not exists
--spec get(Key, Default, Opts) -> {Key, Val} when
-      Key  :: atom() | list(),
-      Opts :: options(),
-      Default :: term(),
-      Val  :: term().
+-spec get(key(), val(), opts()) -> pair().
 
 get(Key, Default, Opts)
- when is_atom(Key), is_list(Opts) ->
+ when not is_list(Key), is_list(Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       {Key, _}=Val ->
          Val;
@@ -157,23 +129,19 @@ get(Key, Default, Opts)
    end;
 
 get(Key, Default, Opts)
- when is_binary(Key), is_list(Opts) ->
-   case lists:keyfind(Key, 1, Opts) of
-      {Key, _}=Val ->
-         Val;
-      _          -> 
-         case lists:member(Key, Opts) of
-            true  -> Key;
-            false -> {Key, Default}
+ when not is_list(Key), is_atom(Opts) ->
+   case application:get_env(Opts, Key) of
+      {ok, true} -> 
+         Key;
+      {ok,  Val} -> 
+         {Key, Val};
+      undefined  -> 
+         case os_get_opts(Key, undefined, Opts) of
+            undefined ->
+               {Key, Default};
+            Value     ->
+               {Key, Value}
          end
-   end;
-
-get(Key, Default, App)
- when is_atom(Key), is_atom(App) ->
-   case application:get_env(App, Key) of
-      {ok, true} -> Key;
-      {ok,  Val} -> {Key, Val};
-      undefined  -> {Key, Default}
    end;
 
 get([Key|T], Default, Opts) ->
@@ -187,10 +155,7 @@ get([], Default, _Opts) ->
 
 %%
 %% read option value, throw {badarg, Key} error if key do not exists
--spec val(Key, Opts) -> Val when
-      Key  :: atom(),
-      Opts :: options(),
-      Val  :: term().
+-spec val(key(), opts()) -> val().
 
 val(Key, Opts) ->
    case opts:get(Key, Opts) of
@@ -200,14 +165,24 @@ val(Key, Opts) ->
 
 %%
 %% read option value, return default key if key do not exists
--spec val(Key, Default, Opts) -> Val when
-      Key  :: atom(),
-      Opts :: options(),
-      Default :: term(),
-      Val  :: term().
+-spec val(key(), val(), opts()) -> val().
 
 val(Key, Default, Opts) ->
    case opts:get(Key, Default, Opts) of
       {_, Val} -> Val;
       Result   -> Result
    end.
+
+%%%------------------------------------------------------------------
+%%%
+%%% private 
+%%%
+%%%------------------------------------------------------------------
+
+os_env(Key, Opts) ->
+   string:to_upper(scalar:c(Opts)) ++ "_" ++ string:to_upper(scalar:c(Key)).
+
+os_get_opts(Key, Default, Opts) ->
+   scalar:decode(os:getenv(os_env(Key, Opts), Default)).    
+
+
