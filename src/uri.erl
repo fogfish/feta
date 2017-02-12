@@ -391,7 +391,8 @@ anchor(Val, {uri, S, U}) ->
 -spec suburi(any(), uri()) -> binary().
 
 suburi({uri, _, U}=Uri) ->
-   <<(uri:path(Uri))/binary, (tosp(U#uval.q, $?))/binary, (tosp(U#uval.anchor, $#))/binary>>.
+   Path = case uri:path(Uri) of undefined -> <<$/>>; X -> X end,
+   <<Path/binary, (tosp(U#uval.q, $?))/binary, (tosp(U#uval.anchor, $#))/binary>>.
 
 suburi(undefined, Uri) ->
    uri:anchor(undefined,
