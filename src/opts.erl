@@ -14,52 +14,54 @@
 %%   limitations under the License.
 %%
 %% @doc
-%%   Configuration helper interface (extension to proplists). It transparently 
-%%   resolves configuration options using either key/value pairs or application 
-%%   global configuration: Erlang application environment and OS environment.
+%%   List of configuration options - extension to proplists that transparently 
+%%    * read options from key/value pairs
+%%    * read options from application environment
+%%    * read options from OS environment
+%%
+%%   For example, read opts from list of pairs
+%%   opts:get(key, [...]).  
+%%  
+%%   For example, read opts from application
+%%   opts:get(key, myapp).
+%%
+%%   The config file http://erlang.org/doc/man/config.html might define a value
+%%     {key, {env, "OS_ENV_VAR", default}}
+%%   it is run-time expanded to actual value of OS_ENV_VAR
 -module(opts).
 
 -export([check/3, check/2, filter/2, get/2, get/3, val/2, val/3]).
 -export_type([opts/0]).
 
--type key()   :: atom() | binary().
--type val()   :: term().
--type app()   :: atom().
--type pair()  :: {key(), val()}.
--type opts()  :: [pair() | key()] | app().
+%%
+%% data types
+-type key()   :: _.
 
+-type val()   :: _.
+-type pair()  :: {key(), val()} | key().
+
+-type app()   :: atom().
+-type opts()  :: [pair()] | app().
+
+
+-define(is_app(X),   is_atom(X)).
+-define(is_opts(X),  is_list(X)).
 
 %%
 %% check-and-define option with given key
 -spec check(key(), val(), opts()) -> opts().
 
-check(Key, Default, Opts)
- when not is_list(Key), is_list(Opts) ->
-   case opts:get(Key, Default, Opts) of
-      {_, undefined} ->
-         throw({badarg, Key});
+check(Key, Default, Opts) ->
+   case fail(Key, opts:get(Key, Default, Opts) ) of
       {_, Default} ->
-         [{Key, Default} | Opts];
-      _ ->
-         Opts
-   end;
-
-check(Key, Default, Opts)
- when not is_list(Key), is_atom(Opts) ->
-   case opts:get(Key, Default, Opts) of
-      {_, undefined} ->
-         throw({badarg, Key});
-      {_, Default} ->
-         application:set_env(Opts, Key, Default),
-         Opts;
+         append(Key, Default, Opts);
       _ ->
          Opts
    end.
 
-
 %%
 %% check collection of keys are defined at environment
--spec check([pair() | key()], opts()) -> opts().
+-spec check([pair()], opts()) -> opts().
 
 check([{Key, Default}|T], Opts) ->
    check(T, check(Key, Default, Opts));
@@ -76,17 +78,11 @@ check([], Opts) ->
 -spec filter([key()], opts()) -> opts().
 
 filter(Filter, Opts)
- when is_list(Opts) ->
-   lists:filter(
-      fun
-         ({X, _}) -> lists:member(X, Filter);
-         (X)      -> lists:member(X, Filter)  
-      end, 
-      Opts
-   );
+ when ?is_opts(Opts) ->
+   [Pair || Pair <- Opts, lists:member(key(Pair), Filter)];
 
 filter(Filter, App)
- when is_atom(App) ->
+ when ?is_app(App) ->
    filter(Filter, application:get_all_env(App)).
 
 
@@ -94,30 +90,45 @@ filter(Filter, App)
 %% read option value, throw {badarg, Key} error if key do not exists
 -spec get(key() | [key()], opts()) -> pair().
 
-get(Key, Opts)
- when not is_list(Key) ->
-   case opts:get(Key, undefined, Opts) of
-      {_, undefined} ->
-         throw({badarg, Key});
-      Value ->
-         Value
-   end;
-
-get([Key|T], Opts) ->
-   case opts:get(Key, undefined, Opts) of
-      {_, undefined} -> get(T, Opts);
-      Value          -> Value
-   end;
-
-get([], _Opts) ->
-   throw(badarg).
+get(Key, Opts) ->
+   fail(Key, opts:get(Key, undefined, Opts) ).
 
 %%
-%% read option value, return default key if key do not exists
+%% read options value, return default value if key do not exists
 -spec get(key(), val(), opts()) -> pair().
 
 get(Key, Default, Opts)
- when not is_list(Key), is_list(Opts) ->
+ when ?is_opts(Opts) ->
+   get_opts(Key, Default, Opts);
+
+get(Key, Default, Opts)
+ when ?is_app(Opts) ->
+   get_app(Key, Default, Opts).
+
+
+%%
+%% read option value, throw {badarg, Key} error if key do not exists
+-spec val(key(), opts()) -> val().
+
+val(Key, Opts) ->
+   value( opts:get(Key, Opts) ).
+
+%%
+%% read option value, return default value if key do not exists
+-spec val(key(), val(), opts()) -> val().
+
+val(Key, Default, Opts) ->
+   value( opts:get(Key, Default, Opts) ).
+
+%%%------------------------------------------------------------------
+%%%
+%%% private 
+%%%
+%%%------------------------------------------------------------------
+
+%%
+%% read value from options pair list
+get_opts(Key, Default, Opts) ->
    case lists:keyfind(Key, 1, Opts) of
       {Key, _}=Val ->
          Val;
@@ -126,48 +137,55 @@ get(Key, Default, Opts)
             true  -> Key;
             false -> {Key, Default}
          end
-   end;
+   end.
 
-get(Key, Default, Opts)
- when not is_list(Key), is_atom(Opts) ->
-   case application:get_env(Opts, Key) of
+%%
+%%
+get_app(Key, Default, App) ->
+   case application:get_env(App, Key) of
       {ok, true} -> Key;
-      {ok,  Val} -> {Key, Val};
+      {ok, {env, Env, Def}} -> get_os_env(Key, Env, Def, App);
+      {ok, Val} -> {Key, Val};
       undefined  -> {Key, Default}
-   end;
-
-get([Key|T], Default, Opts) ->
-   case opts:get(Key, undefined, Opts) of
-      {_, undefined} -> get(T, Default, Opts);
-      Val            -> Val
-   end;
-
-get([], Default, _Opts) ->
-   Default.
-
-%%
-%% read option value, throw {badarg, Key} error if key do not exists
--spec val(key(), opts()) -> val().
-
-val(Key, Opts) ->
-   case opts:get(Key, Opts) of
-      {_, Val} -> Val;
-      _        -> true
    end.
 
 %%
-%% read option value, return default key if key do not exists
--spec val(key(), val(), opts()) -> val().
+%%
+get_os_env(Key, Env, Def, App) ->
+   Val = os:getenv(Env, Def),
+   application:set_env(App, Key, Val),
+   {Key, Val}.   
 
-val(Key, Default, Opts) ->
-   case opts:get(Key, Default, Opts) of
-      {_, Val} -> Val;
-      Result   -> Result
-   end.
 
-%%%------------------------------------------------------------------
-%%%
-%%% private 
-%%%
-%%%------------------------------------------------------------------
+%%
+%%
+append(Key, Default, Opts)
+ when ?is_opts(Opts) ->
+   [{Key, Default} | Opts];
 
+append(Key, Default, App)
+ when ?is_app(App) ->
+   application:set_env(App, Key, Default),
+   App.
+
+
+%%
+%% fails if none : maps pair() to error()
+fail(Key, {_, undefined}) ->
+   throw({badarg, Key});
+fail(_, Pair) ->
+   Pair.
+
+%%
+%% return pair value
+value({_, Value}) ->
+   Value;
+value(_) ->
+   true.
+
+%%
+%% return pair key
+key({Key, _}) ->
+   Key;
+key(Key) ->
+   Key.
