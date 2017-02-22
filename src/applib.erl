@@ -183,7 +183,7 @@ ensure_started(App) ->
    lists:foldl(fun ensure_started/2, ok, deps(App)).
 
 ensure_started(App, ok) ->
-   case application:start(App) of
+   case application:start(App, permanent) of
       {error, {already_started, _}} -> 
          ok;
       Any ->
