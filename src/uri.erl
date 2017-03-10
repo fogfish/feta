@@ -268,8 +268,9 @@ segments({_, _, #uval{path=undefined}}) ->
    undefined;
 segments({_, _, #uval{path=Path}}) ->
    case binary:split(Path, <<"/">>, [global, trim]) of
-      []         -> [];
-      [_ | Segs] -> Segs
+      []            -> [];
+      [<<>> | Segs] -> Segs;
+      Segs          -> Segs
    end;
 
 segments({urn,  _, undefined}) ->
