@@ -24,6 +24,7 @@
   ,stream/1
   ,stream/2
   ,decode/2
+  ,decode/1
   ,encode/2
 ]).
 
@@ -41,6 +42,7 @@
 -record(csv, {
    field  = ?FIELD_BY        %% field separator
   ,line   = ?LINE_BY         %% line  separator
+  ,regex
   ,recbuf = <<>> :: binary() %% internal receive buffer
 }).
 
@@ -51,13 +53,24 @@
 -spec new(list()) -> #csv{}.
 
 new() ->
-   #csv{}.
+    Opts = [{line, ?LINE_BY},
+            {field, ?FIELD_BY},
+            {quote, ?QUOTE}],
+    new(Opts).
 
 new(Opts) ->
+    Field =  opts:val(field, ?FIELD_BY, Opts),
+    Line = opts:val(line,  ?LINE_BY, Opts),
+    Quote = opts:val(qoute,  ?QUOTE, Opts),
+    {ok, MP} = re:compile(<<"(",Quote/binary,")?",
+                            "(?(1)",
+                            "((",Quote/binary, "{2}|[^",Quote/binary,"])*",Quote/binary,")",
+                            "|[^",Quote/binary, Field/binary, Line/binary,"]*)",
+                            "(",Field/binary,"|",Line/binary, ")">>),
    #csv{
-      field = opts:val(field, ?FIELD_BY, Opts),
-      line  = opts:val(line,  ?LINE_BY, Opts)
-   }.
+      field = Field,
+      line = Line,
+      regex = MP}.
 
 %%
 %% stream decoder
@@ -92,41 +105,75 @@ stream([Head|Tail], Stream, State) ->
 %%
 %% decode csv stream
 %% returns parsed values and new parser state
+
+-spec decode(#csv{}) -> {[csv()], #csv{}}.
+decode(Chunk) ->
+    decode(Chunk, new()).
+
 -spec decode(binary(), #csv{}) -> {[csv()], #csv{}}.
-
-decode(Chunk, #csv{recbuf = <<>>}=State)
+decode(Chunk, #csv{recbuf = RecBuf, regex = Regex} = State)
  when is_binary(Chunk) ->
-   decode(Chunk, [], State);
+    NewChunk = iolist_to_binary([RecBuf, Chunk]),
+    Match = re:run(NewChunk, Regex, [global, {capture, all, index}]),
+    {ok, {_Csv, _NewState} = Result} = process_match(Match, State, Chunk),
+    Result.
 
-decode(Chunk, State)
- when is_binary(Chunk) ->
-   decode(iolist_to_binary([State#csv.recbuf, Chunk]), [], State#csv{recbuf = <<>>}).
+-spec process_match({match, [binary:part()]} | nomatch, #csv{}, binary()) ->
+    {ok, {[csv()], #csv{}}}.
+process_match(nomatch, State, Chunk) ->
+    {ok, {[], State#csv{recbuf = Chunk}}};
 
-decode(Chunk, Acc, #csv{field=FieldBy, line=LineBy}=State) ->
-   case binary:split(Chunk, LineBy) of
-      [Head, Tail] ->
-         decode(Tail, [split(Head, FieldBy) | Acc], State);
-      [Head]      ->
-         {lists:reverse(Acc), State#csv{recbuf = Head}}
-   end.
-   
+process_match({match, Matches}, State, Chunk) ->
+    {Res, NewChunk} = process_chunk(Matches, State, Chunk),
+    {ok, {Res, State#csv{recbuf = NewChunk}}}.
+
+-spec process_chunk([binary:part()], #csv{}, binary()) ->
+    {[csv()], binary()}.
+process_chunk(Matches, #csv{line = LineBy} = State, Chunk) ->
+    Matches2 = filter_incomplete_lines(Matches, Chunk, LineBy),
+    process_chunk(Matches2, Chunk, State, [], [], 0).
+
+process_chunk([], Chunk, #csv{}, [], Acc, LenProcessed) ->
+    Size = byte_size(Chunk),
+    NotProcessed = Size - LenProcessed,
+    NewChunk = binary:part(Chunk, Size, -NotProcessed),
+    {lists:reverse(Acc), NewChunk};
+
+process_chunk([Match | Matches], Chunk,
+              #csv{line = LineBy, field = FieldBy} = State, LineAcc, Acc, _) ->
+    {Pos, Len} = hd(Match), % Match - {Pos, Len} - including delimeter
+    Csv = binary:part(Chunk, Pos, Len - 1),
+    Csv2 = format_term(Csv, State),
+    Delim = binary:part(Chunk, Pos + Len, -1),
+    case Delim of
+        LineBy -> NewLine = lists:reverse([Csv2 | LineAcc]),
+                  process_chunk(Matches, Chunk, State,
+                                [], [NewLine | Acc], Pos+Len);
+        FieldBy -> process_chunk(Matches, Chunk, State,
+                                 [Csv | LineAcc], Acc, Pos+Len)
+    end.
 %%
-%% split csv line
-split(<<$", Input/binary>>, FieldBy) ->
-   case binary:split(Input, <<$", FieldBy/binary>>) of
-      [Head, Tail] ->
-         [Head | split(Tail, FieldBy)];
-      [_] = Head ->
-         Head
-   end;
-      
-split(Input, FieldBy) ->
-   case binary:split(Input, FieldBy) of
-      [Head, Tail] ->
-         [Head | split(Tail, FieldBy)];
-      [_] = Head ->
-         Head
-   end.
+
+filter_incomplete_lines(Matches, Chunk, LineBy) ->
+    Fun = fun(Match) ->
+                  PosLen = lists:last(Match),
+                  binary:part(Chunk, PosLen) =/= LineBy
+          end,
+    lists:reverse(lists:dropwhile(Fun, lists:reverse(Matches))).
+
+format_term(CsvTerm, #csv{line = LineBy}) ->
+    Q = ?QUOTE,
+    Term1 = case CsvTerm of
+                <<Q:1/binary, Rest/binary>> ->
+                    Size = byte_size(Rest) - 1,
+                    <<Term:Size/binary, Q/binary>> = Rest,
+                    Term;
+                _ ->
+                    CsvTerm
+            end,
+    Term2 = binary:replace(Term1, <<Q/binary, Q/binary>>, Q, [global]),
+    binary:replace(Term2, LineBy, <<>>, [global]).
+
 
 %%%------------------------------------------------------------------
 %%%
