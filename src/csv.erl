@@ -115,7 +115,7 @@ decode(Chunk, #csv{recbuf = RecBuf, regex = Regex} = State)
  when is_binary(Chunk) ->
     NewChunk = iolist_to_binary([RecBuf, Chunk]),
     Match = re:run(NewChunk, Regex, [global, {capture, all, index}]),
-    {ok, {_Csv, _NewState} = Result} = process_match(Match, State, Chunk),
+    {ok, {_Csv, _NewState} = Result} = process_match(Match, State, NewChunk),
     Result.
 
 -spec process_match({match, [binary:part()]} | nomatch, #csv{}, binary()) ->
