@@ -150,7 +150,7 @@ process_chunk([Match | Matches], Chunk,
                   process_chunk(Matches, Chunk, State,
                                 [], [NewLine | Acc], Pos+Len);
         FieldBy -> process_chunk(Matches, Chunk, State,
-                                 [Csv | LineAcc], Acc, Pos+Len)
+                                 [Csv2 | LineAcc], Acc, Pos+Len)
     end.
 %%
 
