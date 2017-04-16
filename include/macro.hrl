@@ -41,7 +41,7 @@
 %% map key/val list to record
 -ifndef(struct).
 -define(struct(Struct, X),
-   list_to_tuple([Struct |  [proplists:get_value(Y, X) || Y <- record_info(fields, Struct)]])
+   list_to_tuple([Struct |  [lists:keyfind(Y, 1, X) || Y <- record_info(fields, Struct)]])
 ).
 -endif.
 
@@ -50,7 +50,7 @@
 %% map key/val list to record (keys are atoms)
 -ifndef(structA).
 -define(structA(Struct, X),
-   list_to_tuple([Struct |  [proplists:get_value(Y, X) || Y <- record_info(fields, Struct)]])
+   list_to_tuple([Struct |  [lists:keyfind(Y, 1, X) || Y <- record_info(fields, Struct)]])
 ).
 -endif.
 
@@ -58,6 +58,6 @@
 %% map key/val list to record (keys are binary)
 -ifndef(structB).
 -define(structB(Struct, X),
-   list_to_tuple([Struct |  [proplists:get_value(atom_to_binary(Y, utf8), X) || Y <- record_info(fields, Struct)]])
+   list_to_tuple([Struct |  [lists:keyfind(atom_to_binary(Y, utf8), 1, X) || Y <- record_info(fields, Struct)]])
 ).
 -endif.

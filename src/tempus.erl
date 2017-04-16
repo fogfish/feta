@@ -23,7 +23,7 @@
 %%   * how to handle ac / bc correctly
 %%
 -module(tempus).
--include("include/macro.hrl").
+-include("macro.hrl").
 
 -export([
    %% time to micro-, milli-, second
