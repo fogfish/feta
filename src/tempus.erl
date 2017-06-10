@@ -27,10 +27,10 @@
 
 -export([
    %% time to micro-, milli-, second
-   u/1,
-   m/1,
-   s/1,
-   d/1,
+   u/0, u/1,
+   m/0, m/1,
+   s/0, s/1,
+   d/0, d/1,
 
    %% micro-, milli-, second to time
    t/2,
@@ -149,6 +149,21 @@ t(d, X)
    t(s, X);
 t(d, {_, _, _}=X) ->
    X.
+
+%%
+%% system time to micro-, milli-, second or date-time
+%% the function is created to improve mocking purpose
+%%  
+%% use tempus:s() instead of tempus:s(os:timestamp())
+-spec u() -> integer().
+-spec m() -> integer().
+-spec s() -> integer().
+-spec d() -> calendar:datetime().
+
+u() -> u(os:timestamp()).
+m() -> m(os:timestamp()).
+s() -> s(os:timestamp()).
+d() -> d(os:timestamp()).
 
 
 %%
@@ -306,7 +321,7 @@ timer({T0, Drift}=T, Msg)
       0 ->
          T0;
       X ->
-         T0 + random:uniform(X)
+         T0 + rand:uniform(X)
    end,
    {timer, T, erlang:send_after(T1, self(), Msg)};
 
