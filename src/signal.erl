@@ -58,8 +58,8 @@ new(Max, Opts) ->
    	b = B,
    	c = erlang:round(Period * Stable),
    	d = erlang:round(Max    * Var),
-      beta  = random:uniform(Max),
-      gamma = random:uniform(B)
+      beta  = rand:uniform(Max),
+      gamma = rand:uniform(B)
    }.
 
 %%
@@ -73,13 +73,13 @@ value(#signal{state=slope, c=C}=S) ->
    % slope is over make a stable part
    value(S#signal{
       state = stable,
-      delta = random:uniform(C),
+      delta = rand:uniform(C),
       cnt   = 0
    });
 
 value(#signal{state=stable, d=D0, delta=D, cnt=Cnt, val=V0}=S) when Cnt < D ->
    % make a stable part
-   Val = erlang:round(V0 + random:uniform(D0)),
+   Val = erlang:round(V0 + rand:uniform(D0)),
    {Val, S#signal{val=Val, cnt=Cnt + 1}};
 
 value(#signal{state=stable, a=A0, b=B0, beta=B}=S) ->
@@ -89,8 +89,8 @@ value(#signal{state=stable, a=A0, b=B0, beta=B}=S) ->
       cnt   = 0,
       val   = B,
       alpha = B,
-      beta  = random:uniform(A0),
-      gamma = random:uniform(B0) 
+      beta  = rand:uniform(A0),
+      gamma = rand:uniform(B0) 
    }).
 
 

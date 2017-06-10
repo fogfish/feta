@@ -28,7 +28,7 @@
 %% (see https://en.wikipedia.org/wiki/Poisson_distribution)
 poisson(L) ->
    X = math:exp(-L), 
-   poisson(0, L, X, X, random:uniform()).
+   poisson(0, L, X, X, rand:uniform()).
 
 poisson(X0, L, P0, S, U)
  when U > S ->
@@ -45,7 +45,7 @@ pareto(A, H) ->
    pareto(A, 1, H).
 
 pareto(A, L, H) ->
-   U  = random:uniform(),
+   U  = rand:uniform(),
    La = math:pow(L, A),
    Ha = math:pow(H, A),
    X  = math:pow( -(U * Ha - U * La - Ha) / (Ha * La), -1 / A ),
