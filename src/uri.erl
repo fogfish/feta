@@ -715,7 +715,7 @@ aton(IP)
 -spec registry(atom(), _) -> atom().
 
 registry(App, {uri, _, _} = Uri) ->
-   (opts:val(registry, App)):lookup(uri:schema(Uri));
+   (opts:val(registry, App)):lookup(App, uri:schema(Uri));
 
 registry(App, Uri) ->
    registry(App, uri:new(Uri)).
