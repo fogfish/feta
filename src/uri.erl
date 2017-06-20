@@ -70,7 +70,8 @@
    urn/2,
    unescape/1, 
    escape/1,
-   aton/1
+   aton/1,
+   registry/2
 ]).
 
 -export_type([uri/0, urn/0]).
@@ -709,6 +710,15 @@ aton(IP)
  when is_binary(IP) ->
    aton(scalar:c(IP)).
 
+%%
+%% utility function to discover uri handler
+-spec registry(atom(), _) -> atom().
+
+registry(App, {uri, _, _} = Uri) ->
+   (opts:val(registry, App)):lookup(uri:schema(Uri));
+
+registry(App, Uri) ->
+   registry(App, uri:new(Uri)).
 
 %%%------------------------------------------------------------------
 %%%
