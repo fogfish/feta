@@ -71,7 +71,7 @@
    unescape/1, 
    escape/1,
    aton/1,
-   registry/2
+   protocol/2
 ]).
 
 -export_type([uri/0, urn/0]).
@@ -712,13 +712,13 @@ aton(IP)
 
 %%
 %% utility function to discover uri handler
--spec registry(atom(), _) -> atom().
+-spec protocol(atom(), _) -> atom().
 
-registry(App, {uri, _, _} = Uri) ->
-   (opts:val(registry, App)):lookup(App, uri:schema(Uri));
+protocol(App, {uri, _, _} = Uri) ->
+   (opts:val(registry, App)):uri_protocol(App, uri:schema(Uri));
 
-registry(App, Uri) ->
-   registry(App, uri:new(Uri)).
+protocol(App, Uri) ->
+   protocol(App, uri:new(Uri)).
 
 %%%------------------------------------------------------------------
 %%%
