@@ -715,7 +715,7 @@ aton(IP)
 -spec protocol(atom(), _) -> atom().
 
 protocol(App, {uri, _, _} = Uri) ->
-   (opts:val(registry, App)):uri_protocol(App, uri:schema(Uri));
+   (opts:val(registry, App, App)):uri_protocol(App, uri:schema(Uri));
 
 protocol(App, Uri) ->
    protocol(App, uri:new(Uri)).
