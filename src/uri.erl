@@ -70,8 +70,7 @@
    urn/2,
    unescape/1, 
    escape/1,
-   aton/1,
-   protocol/2
+   aton/1
 ]).
 
 -export_type([uri/0, urn/0]).
@@ -710,15 +709,6 @@ aton(IP)
  when is_binary(IP) ->
    aton(scalar:c(IP)).
 
-%%
-%% utility function to discover uri handler
--spec protocol(atom(), _) -> atom().
-
-protocol(App, {uri, _, _} = Uri) ->
-   (opts:val(registry, App, App)):uri_protocol(App, uri:schema(Uri));
-
-protocol(App, Uri) ->
-   protocol(App, uri:new(Uri)).
 
 %%%------------------------------------------------------------------
 %%%
