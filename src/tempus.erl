@@ -42,6 +42,7 @@
    timeout/2, timeout/3,
    drift/3, drift/4,
    backoff/3, backoff/4,
+   restart/1,
    % deprecated
    event/2,
    timer/2,
