@@ -39,9 +39,9 @@
    discrete/2,
 
    % events
-   timeout/2, timeout/3,
-   drift/3, drift/4,
-   backoff/3, backoff/4,
+   timeout/1, timeout/2, timeout/3,
+   drift/1, drift/3, drift/4,
+   backoff/1, backoff/3, backoff/4,
    restart/1,
    % deprecated
    event/2,
@@ -294,6 +294,9 @@ discrete(X, Y)
 -spec timeout(t() | integer(), _) -> _.
 -spec timeout(t() | integer(), pid(), _) -> _.
 
+timeout({timeout, T, Pid, Msg, _}) ->
+   timeout(T, Pid, Msg).
+
 timeout(T, Msg) ->
    timeout(T, self(), Msg).
 
@@ -303,6 +306,9 @@ timeout(T, Pid, Msg) ->
 -spec drift(t() | integer(), integer(), _) -> _.
 -spec drift(t() | integer(), integer(), pid(), _) -> _.
 
+drift({drift, T0, T1, Pid, Msg, _}) ->
+   drift(T0, T1, Pid, Msg).
+
 drift(T0, T1, Msg) ->
    drift(T0, T1, self(), Msg).
 
@@ -311,6 +317,9 @@ drift(T0, T1, Pid, Msg) ->
 
 -spec backoff(t() | integer(), t() | integer(), _) -> _.
 -spec backoff(t() | integer(), t() | integer(), pid(), _) -> _.
+
+backoff({backoff, _, T0, T1, Pid, Msg, _}) ->
+   backoff(T0, T1, Pid, Msg).
 
 backoff(T0, T1, Msg) ->
    backoff(T0, T1, self(), Msg).
@@ -332,9 +341,9 @@ restart({drift, T0, T1, Pid, Msg, undefined}) ->
 restart({backoff, C, T0, T1, Pid, Msg, undefined}) ->
    case T0 + (1 bsl C) - 1 of
       T when T =< T1 ->
-         {backoff, C + 1, T0, T1, erlang:send_after(T, Pid, Msg)};
+         {backoff, C + 1, T0, T1, Pid, Msg, erlang:send_after(T, Pid, Msg)};
       _ ->
-         {backoff, C, T0, T1, erlang:send_after(T1, Pid, Msg)}
+         {backoff, C, T0, T1, Pid, Msg, erlang:send_after(T1, Pid, Msg)}
    end;
 
 restart(Timer) ->
@@ -423,10 +432,10 @@ cancel({drift, T0, T1, Pid, Msg, Ref}) ->
    flush_timeout(Msg),
    {drift, T0, T1, Pid, Msg, undefined};
 
-cancel({backoff, _, T0, T1, Pid, Msg, Ref}) ->
+cancel({backoff, C, T0, T1, Pid, Msg, Ref}) ->
    maybe_cancel(Ref),
    flush_timeout(Msg),
-   {backoff, 0, T0, T1, Pid, Msg, undefined};
+   {backoff, C, T0, T1, Pid, Msg, undefined};
 
 cancel(T)
  when is_integer(T) ->
