@@ -315,17 +315,17 @@ drift(T0, T1, Msg) ->
 drift(T0, T1, Pid, Msg) ->
    restart({drift, m(T0), m(T1), Pid, Msg, undefined}).
 
--spec backoff(t() | integer(), t() | integer(), _) -> _.
--spec backoff(t() | integer(), t() | integer(), pid(), _) -> _.
+-spec backoff(t() | integer(), integer(), _) -> _.
+-spec backoff(t() | integer(), integer(), pid(), _) -> _.
 
-backoff({backoff, _, T0, T1, Pid, Msg, _}) ->
-   backoff(T0, T1, Pid, Msg).
+backoff({backoff, _, T0, N, Pid, Msg, _}) ->
+   backoff(T0, N, Pid, Msg).
 
-backoff(T0, T1, Msg) ->
-   backoff(T0, T1, self(), Msg).
+backoff(T0, N, Msg) ->
+   backoff(T0, N, self(), Msg).
 
-backoff(T0, T1, Pid, Msg) ->
-   restart({backoff, 0, m(T0), m(T1), Pid, Msg, undefined}).
+backoff(T0, N, Pid, Msg) ->
+   restart({backoff, 0, m(T0), N, Pid, Msg, undefined}).
 
 %%
 %% restart timer
@@ -338,13 +338,14 @@ restart({drift, T0, T1, Pid, Msg, undefined}) ->
    T = T0 + rand:uniform(T1),
    {drift, T0, T1, Pid, Msg, erlang:send_after(T, Pid, Msg)};
 
-restart({backoff, C, T0, T1, Pid, Msg, undefined}) ->
-   case T0 + (1 bsl C) - 1 of
-      T when T =< T1 ->
-         {backoff, C + 1, T0, T1, Pid, Msg, erlang:send_after(T, Pid, Msg)};
-      _ ->
-         {backoff, C, T0, T1, Pid, Msg, erlang:send_after(T1, Pid, Msg)}
-   end;
+restart({backoff, C, T0, N, Pid, Msg, undefined})
+ when C =< N ->
+   T = T0 + (1 bsl C) - 1,
+   {backoff, C + 1, T0, N, Pid, Msg, erlang:send_after(T, Pid, Msg)};
+
+restart({backoff, C, T0, N, Pid, Msg, undefined}) ->
+   T = T0 + (1 bsl N) - 1,
+   {backoff, C + 1, T0, N, Pid, Msg, erlang:send_after(T, Pid, {Msg, C - N})};
 
 restart(Timer) ->
    restart(cancel(Timer)).
