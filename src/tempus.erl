@@ -14,13 +14,8 @@
 %%   limitations under the License.
 %%
 %% @description
-%%   date/time utility for Erlang. It uses build-in time-stamp triplet as base
-%%   type to carry on date-time.
-%%    
-%%
-%% @todo
-%%   * optimize arithmetic
-%%   * how to handle ac / bc correctly
+%%   date/time data type for Erlang applications. The type uses
+%%   default time-stamp triple {integer(), integer(), integer()} 
 %%
 -module(tempus).
 -include("macro.hrl").
@@ -44,6 +39,10 @@
    discrete/2,
 
    % events
+   timeout/2, timeout/3,
+   drift/3, drift/4,
+   backoff/3, backoff/4,
+   % deprecated
    event/2,
    timer/2,
    reset/2,
@@ -167,7 +166,7 @@ d() -> d(os:timestamp()).
 
 
 %%
-%% calculate time difference, return micro- seconds
+%% calculate time difference, return micro-seconds
 -spec diff(t()) -> integer().
 
 diff(T) ->
@@ -290,6 +289,61 @@ discrete(X, Y)
 %%%------------------------------------------------------------------
 
 %%
+%% create new timer
+-spec timeout(t() | integer(), _) -> _.
+-spec timeout(t() | integer(), pid(), _) -> _.
+
+timeout(T, Msg) ->
+   timeout(T, self(), Msg).
+
+timeout(T, Pid, Msg) ->
+   restart({timeout, m(T), Pid, Msg, undefined}).
+   
+-spec drift(t() | integer(), integer(), _) -> _.
+-spec drift(t() | integer(), integer(), pid(), _) -> _.
+
+drift(T0, T1, Msg) ->
+   drift(T0, T1, self(), Msg).
+
+drift(T0, T1, Pid, Msg) ->
+   restart({drift, m(T0), m(T1), Pid, Msg, undefined}).
+
+-spec backoff(t() | integer(), t() | integer(), _) -> _.
+-spec backoff(t() | integer(), t() | integer(), pid(), _) -> _.
+
+backoff(T0, T1, Msg) ->
+   backoff(T0, T1, self(), Msg).
+
+backoff(T0, T1, Pid, Msg) ->
+   restart({backoff, 0, m(T0), m(T1), Pid, Msg, undefined}).
+
+%%
+%% restart timer
+-spec restart(_) -> _.
+
+restart({timeout, T, Pid, Msg, undefined}) ->
+   {timeout, T, Pid, Msg, erlang:send_after(T, Pid, Msg)};
+
+restart({drift, T0, T1, Pid, Msg, undefined}) ->
+   T = T0 + rand:uniform(T1),
+   {drift, T0, T1, Pid, Msg, erlang:send_after(T, Pid, Msg)};
+
+restart({backoff, C, T0, T1, Pid, Msg, undefined}) ->
+   case T0 + (1 bsl C) - 1 of
+      T when T =< T1 ->
+         {backoff, C + 1, T0, T1, erlang:send_after(T, Pid, Msg)};
+      _ ->
+         {backoff, C, T0, T1, erlang:send_after(T1, Pid, Msg)}
+   end;
+
+restart(Timer) ->
+   restart(cancel(Timer)).
+
+
+%%
+%% deprecated
+
+%%
 %% raise event after timeout
 -spec event(integer() | timer(), any()) -> any().
 
@@ -358,6 +412,21 @@ reset({timer, _, _}=T, Msg) ->
 %% cancel event
 -spec cancel(any()) -> integer().
 
+cancel({timeout, T, Pid, Msg, Ref}) ->
+   maybe_cancel(Ref),
+   flush_timeout(Msg),
+   {timeout, T, Pid, Msg, undefined};
+
+cancel({drift, T0, T1, Pid, Msg, Ref}) ->
+   maybe_cancel(Ref),
+   flush_timeout(Msg),
+   {drift, T0, T1, Pid, Msg, undefined};
+
+cancel({backoff, _, T0, T1, Pid, Msg, Ref}) ->
+   maybe_cancel(Ref),
+   flush_timeout(Msg),
+   {backoff, 0, T0, T1, Pid, Msg, undefined};
+
 cancel(T)
  when is_integer(T) ->
    T;
@@ -373,6 +442,18 @@ cancel({timer, T, Timer}) ->
 cancel(T) ->
    T.
 
+
+maybe_cancel(undefined) ->
+   ok;
+maybe_cancel(Ref) ->
+   erlang:cancel_timer(Ref).
+
+flush_timeout(Msg) ->
+   receive 
+      Msg -> ok 
+   after 
+      0   -> ok 
+   end.
 
 %%%------------------------------------------------------------------
 %%%
