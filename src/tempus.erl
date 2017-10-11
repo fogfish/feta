@@ -433,10 +433,10 @@ cancel({drift, T0, T1, Pid, Msg, Ref}) ->
    flush_timeout(Msg),
    {drift, T0, T1, Pid, Msg, undefined};
 
-cancel({backoff, C, T0, T1, Pid, Msg, Ref}) ->
+cancel({backoff, C, T0, N, Pid, Msg, Ref}) ->
    maybe_cancel(Ref),
    flush_timeout(Msg),
-   {backoff, C, T0, T1, Pid, Msg, undefined};
+   {backoff, C, T0, N, Pid, Msg, undefined};
 
 cancel(T)
  when is_integer(T) ->

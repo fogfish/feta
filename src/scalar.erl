@@ -43,6 +43,7 @@
    decode/1 
 ]).
 
+
 %%
 %% scalar to integer
 -spec i(_) -> integer().

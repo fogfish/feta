@@ -73,12 +73,17 @@
    aton/1
 ]).
 
--export_type([uri/0, urn/0]).
+-export_type([uri/0, urn/0, host/0, port/0, authority/0, path/0, segments/0, params/0]).
 
 %% 
--type(uri()    :: {uri, schema(),  any()}).
--type(urn()    :: {urn, binary(), binary}).
--type(schema() :: binary() | atom() | [atom()]).
+-type uri()      :: {uri, schema(),  any()}.
+-type urn()      :: {urn, binary(), binary}.
+-type schema()   :: binary() | atom() | [atom()].
+-type host()     :: binary().
+-type authority():: {host(), integer()}.
+-type path()     :: binary() | list().
+-type segments() :: [binary()].
+-type params()   :: [{binary(), _}].
 
 %% internal uri structures
 -record(uval, {
@@ -182,11 +187,11 @@ userinfo(Val, {Uri, S, #uval{}=U}) ->
 
 %%
 %%
--spec host(uri()) -> binary().
--spec host(any(), uri()) -> uri().
+-spec host(uri()) -> host().
+-spec host(host() | _, uri()) -> uri().
 
-host({_,  _, #uval{}=U}) ->
-   U#uval.host.
+host({_,  _, #uval{host = Host}}) ->
+   Host.
 
 host(undefined, {Uri, S, #uval{}=U}) ->
    {Uri, S, U#uval{host = undefined}};
@@ -199,10 +204,10 @@ host(Val, {Uri, S, #uval{}=U}) ->
 %%
 %%
 -spec port(uri()) -> integer().
--spec port(any(), uri()) -> uri().
+-spec port(integer(), uri()) -> uri().
 
-port({_, S, #uval{}=U}) ->
-   schema_to_port(S, U#uval.port).
+port({_, Schema, #uval{port = Port}}) ->
+   schema_to_port(Schema, Port).
 
 port(undefined, {Uri, S, #uval{}=U}) ->
    {Uri, S, U#uval{port = undefined}};
@@ -211,8 +216,8 @@ port(Val, {Uri, S, #uval{}=U}) ->
 
 %%
 %% authority   = [ userinfo "@" ] host [ ":" port ]
--spec authority(uri()) -> {binary(), integer()}.
--spec authority({any(), any()} | any(), uri()) -> uri().
+-spec authority(uri()) -> authority().
+-spec authority(authority() | _, uri()) -> uri().
 
 authority({_, _, _}=Uri) ->
    case {uri:host(Uri), uri:port(Uri)} of
@@ -237,8 +242,8 @@ authority(Val, {uri, _, _}=Uri) ->
 
 %%
 %%
--spec path(uri()) -> binary().
--spec path(any(), uri()) -> uri().
+-spec path(uri()) -> path().
+-spec path(path(), uri()) -> uri().
 
 path({_, _, #uval{path=undefined}}) ->
    undefined;
@@ -261,8 +266,8 @@ path(Val, {urn, S, _}) ->
 
 %%
 %%
--spec segments(uri()) -> [binary()].
--spec segments(any(), uri()) -> uri().
+-spec segments(uri()) -> segments().
+-spec segments(path() | segments(), uri()) -> uri().
 
 segments({_, _, #uval{path=undefined}}) ->
    undefined;
@@ -297,7 +302,7 @@ segments(Val, Uri)
 
 %%
 %% join path segment(s)
--spec join([any()], uri()) -> uri().
+-spec join(segments(), uri()) -> uri().
 
 join([H|T], {urn, _, _}=Uri) ->
    X = iolist_to_binary([scalar:s(H)|[[$:, scalar:s(X)] || X <- T]]),
@@ -321,8 +326,8 @@ join(Join, {T, _, _}=Uri)
 
 %%
 %%
--spec q(uri()) -> [{binary(), binary()}].
--spec q(any(), uri()) -> uri().
+-spec q(uri()) -> params().
+-spec q(params(), uri()) -> uri().
 
 q({uri, _, #uval{q=undefined}}) ->
    undefined;
@@ -456,7 +461,7 @@ set(suburi,    Val, Uri) -> uri:suburi(Val, Uri).
 
 %%
 %% helper function to read key value from query
--spec q(any(), any(), uri()) -> uri().
+-spec q(_, _, uri()) -> _.
 
 q(_Key, Default, {uri, _, #uval{q=undefined}}) ->
    Default;
