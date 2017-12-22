@@ -34,7 +34,7 @@
 
 -export([pxor/2, pand/2]).
 -export([cast/1, btoi/1, btol/1, btoh/1, htob/1]).
--export([interleave/2]).
+-export([interleave/2, zip/2, zip/3]).
 
 %%%----------------------------------------------------------------------------   
 %%%
@@ -217,15 +217,23 @@ htob(X) ->
 
 %%
 %%
-interleave(X, Y) 
- when is_bitstring(X), is_bitstring(Y), 
-      bit_size(X) =:= bit_size(Y) ->
-   interleave(X, Y, bit_size(X) - 1, <<>>).
+interleave(X, Y) -> zip(X, Y).
 
-interleave(_, _, -1, Acc) ->
-   Acc;
-interleave(X, Y, N, Acc) ->
-   <<_:N/bits, Xbit:1, _/bits>> = X,
-   <<_:N/bits, Ybit:1, _/bits>> = Y,
-   interleave(X, Y, N - 1, <<Xbit:1, Ybit:1, Acc/bits>>).
+zip(X, Y)
+ when is_bitstring(X), is_bitstring(Y), bit_size(X) =:= bit_size(Y) ->
+   zip2(X, Y, <<>>).
+
+zip2(<<Xbit:1, X/bits>>, <<Ybit:1, Y/bits>>, Acc) ->
+   zip2(X, Y, <<Acc/bits, Xbit:1, Ybit:1>>);
+zip2(<<>>, <<>>, Acc) ->
+   Acc.
+
+zip(X, Y, Z)
+ when is_bitstring(X), is_bitstring(Y), bit_size(X) =:= bit_size(Y), bit_size(X) =:= bit_size(Z) ->
+   zip3(X, Y, Z, <<>>).
+
+zip3(<<Xbit:1, X/bits>>, <<Ybit:1, Y/bits>>, <<Zbit:1, Z/bits>>, Acc) ->
+   zip3(X, Y, Z, <<Acc/bits, Xbit:1, Ybit:1, Zbit:1>>);
+zip3(<<>>, <<>>, <<>>, Acc) ->
+   Acc.
 
