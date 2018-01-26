@@ -34,7 +34,7 @@
 
 -export([pxor/2, pand/2]).
 -export([cast/1, btoi/1, btol/1, btoh/1, htob/1]).
--export([interleave/2, zip/2, zip/3]).
+-export([zip32/2, zip64/2, zip64/3]).
 
 %%%----------------------------------------------------------------------------   
 %%%
@@ -215,25 +215,42 @@ btoh(X) ->
 htob(X) ->
    << <<(if A >= $a, A =< $f -> 10 + (A - $a); A >= $A, A =< $F -> 10 + (A - $A); A >=$0, A =< $9 -> A - $0 end):4>> || <<A:8>> <=X >>. 
 
+
 %%
 %%
-interleave(X, Y) -> zip(X, Y).
+zip32(X, Y) ->
+   zip32i(X) bor (zip32i(Y) bsl 1).
 
-zip(X, Y)
- when is_bitstring(X), is_bitstring(Y), bit_size(X) =:= bit_size(Y) ->
-   zip2(X, Y, <<>>).
+zip32i(X0) ->
+   X1 = (X0 bxor (X0 bsl 16)) band 16#0000ffff0000ffff,
+   X2 = (X1 bxor (X1 bsl 8 )) band 16#00ff00ff00ff00ff,
+   X3 = (X2 bxor (X2 bsl 4 )) band 16#0f0f0f0f0f0f0f0f,
+   X4 = (X3 bxor (X3 bsl 2 )) band 16#3333333333333333,
+   X5 = (X4 bxor (X4 bsl 1 )) band 16#5555555555555555,
+   X5.   
 
-zip2(<<Xbit:1, X/bits>>, <<Ybit:1, Y/bits>>, Acc) ->
-   zip2(X, Y, <<Acc/bits, Xbit:1, Ybit:1>>);
-zip2(<<>>, <<>>, Acc) ->
-   Acc.
+zip64(X, Y) ->
+   zip64i(X) bor (zip64i(Y) bsl 1).
 
-zip(X, Y, Z)
- when is_bitstring(X), is_bitstring(Y), bit_size(X) =:= bit_size(Y), bit_size(X) =:= bit_size(Z) ->
-   zip3(X, Y, Z, <<>>).
+zip64i(X0) ->
+   X1 = (X0 bxor (X0 bsl 32)) band 16#00000000ffffffff00000000ffffffff,
+   X2 = (X1 bxor (X1 bsl 16)) band 16#0000ffff0000ffff0000ffff0000ffff,
+   X3 = (X2 bxor (X2 bsl 8 )) band 16#00ff00ff00ff00ff00ff00ff00ff00ff,
+   X4 = (X3 bxor (X3 bsl 4 )) band 16#0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f,
+   X5 = (X4 bxor (X4 bsl 2 )) band 16#33333333333333333333333333333333,
+   X6 = (X5 bxor (X5 bsl 1 )) band 16#55555555555555555555555555555555,
+   X6.
 
-zip3(<<Xbit:1, X/bits>>, <<Ybit:1, Y/bits>>, <<Zbit:1, Z/bits>>, Acc) ->
-   zip3(X, Y, Z, <<Acc/bits, Xbit:1, Ybit:1, Zbit:1>>);
-zip3(<<>>, <<>>, <<>>, Acc) ->
-   Acc.
+zip64(X, Y, Z) ->
+   zip64i3(X) bor (zip64i3(Y) bsl 1) bor (zip64i3(Z) bsl 2).
 
+
+zip64i3(X0) ->
+   X1 = X0 band 16#3ffffffffff,
+   X2 = (X1 bor (X1 bsl 64 )) band 16#00003ff0000000000000000ffffffff,
+   X3 = (X2 bor (X2 bsl 32 )) band 16#00003ff00000000ffff00000000ffff,
+   X4 = (X3 bor (X3 bsl 16 )) band 16#30000ff0000ff0000ff0000ff0000ff,
+   X5 = (X4 bor (X4 bsl  8 )) band 16#300f00f00f00f00f00f00f00f00f00f,
+   X6 = (X5 bor (X5 bsl  4 )) band 16#30c30c30c30c30c30c30c30c30c30c3,
+   X7 = (X6 bor (X6 bsl  2 )) band 16#9249249249249249249249249249249,
+   X7.   
