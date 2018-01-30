@@ -54,7 +54,7 @@ new(Head) ->
    new(Head, fun new/0).
 new(Head, Fun)
  when is_function(Fun) ->
-   {s, Head, Fun}.
+   {stream, Head, Fun}.
 
 %%
 %% head element of stream
