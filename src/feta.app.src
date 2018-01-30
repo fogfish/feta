@@ -1,7 +1,7 @@
 {application, feta,
    [
       {description, "fogfish erlang toolkit archive"},
-      {vsn,         "0.23.0"},
+      {vsn,         "0.23.1"},
       {modules,     []},
       {registered,  []},
       {applications,[

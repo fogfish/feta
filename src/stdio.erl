@@ -37,9 +37,9 @@
 
 %%
 %% data types and macro
--type(stream() :: {s, any(), function()}).
+-type(stream() :: {stream, any(), function()}).
 
--define(NULL,  {}).
+-define(NULL,  undefined).
 
 
 %%
@@ -60,25 +60,25 @@ new(Head, Fun)
 %% head element of stream
 -spec head(stdio:stream()) -> any().
 
-head({s, Head, _}) ->
+head({stream, Head, _}) ->
    Head;
 head(_) ->
-   exit(badarg).
+   undefined.
 
 %%
 %% stream tail
 -spec tail(stdio:stream()) -> stdio:stream().
 
-tail({s, _, Fun}) ->
+tail({stream, _, Fun}) ->
    Fun();
 tail(_) ->
-   {}.
+   ?NULL.
 
 %%
 %% apply function to each stream element
 -spec foreach(function(), stdio:stream()) -> ok.
 
-foreach(Fun, {s, _, _}=Stream) ->
+foreach(Fun, {stream, _, _}=Stream) ->
    Fun(head(Stream)),
    foreach(Fun, tail(Stream));
 
@@ -90,12 +90,12 @@ foreach(_Fun, _) ->
 -spec list(stdio:stream()) -> list().
 -spec list(integer(), stdio:stream()) -> list().
 
-list({s, _, _}=Stream) ->
+list({stream, _, _}=Stream) ->
    [stdio:head(Stream) | list(stdio:tail(Stream))];
 list(_) ->
    [].
 
-list(N, {s, _, _}=Stream)
+list(N, {stream, _, _}=Stream)
  when N > 0 ->
    [stdio:head(Stream) | list(N - 1, stdio:tail(Stream))];
 list(_, _) ->
@@ -139,7 +139,7 @@ istream(FD, IoBuf)
    end.
 
 %%
-ostream(FD, {})
+ostream(FD, ?NULL)
  when is_tuple(FD), erlang:element(1, FD) =:= file_descriptor ->
    file:close(FD);
 
