@@ -6,6 +6,8 @@
    stream/1
 ]).
 
+-define(NULL,  undefined).
+
 
 %%
 %% stream decoder
@@ -14,10 +16,10 @@ stream(Stream) ->
    zlib:inflateInit(Z, 31),
    stream(Stream, Z).
 
-stream({},     Z) ->
+stream(?NULL,     Z) ->
    zlib:inflateEnd(Z),
    zlib:close(Z),
-   {};
+   undefined;
 
 stream(Stream, Z) ->
    Head = case zlib:inflate(Z, stdio:head(Stream)) of
